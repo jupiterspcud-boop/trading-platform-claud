@@ -27,4 +27,22 @@ router.post('/sync-spot', async (req, res) => {
   }
 });
 
+// GET /api/analysis/quick-test — mobile-friendly, click-and-go test.
+// Just open this URL directly in any browser (phone or desktop).
+router.get('/quick-test', async (req, res) => {
+  try {
+    const result = await syncSpotOHLC(
+      'NIFTY50',
+      '99926000',
+      'NSE',
+      'ONE_DAY',
+      '2026-08-10 09:15',
+      '2026-08-19 15:30'
+    );
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;
