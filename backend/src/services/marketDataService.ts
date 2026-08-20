@@ -97,7 +97,8 @@ export async function saveSpotOHLC(instrumentSymbol: string, candles: [string, n
     .eq('symbol', instrumentSymbol)
     .single();
 
-  if (instErr || !instrument) throw new Error(`Instrument not found: ${instrumentSymbol}`);
+  if (instErr) throw new Error(`Supabase query error: ${instErr.message} (code: ${instErr.code})`);
+  if (!instrument) throw new Error(`Instrument not found: ${instrumentSymbol}`);
 
   const rows = candles.map(([time, open, high, low, close, volume]) => ({
     instrument_id: instrument.id,
