@@ -37,5 +37,13 @@
 - Security audit (auth, encryption, rate limiting)
 - Load testing for market-open traffic spikes
 
-Note: Phases 5-7 involve real money, real brokers, and real regulation —
-budget significant legal + security review time before public launch.
+## Known Technical Debt (fix before real production use)
+
+- **Angel One rate limiting**: Current fix (800ms delay + 1 retry on 403) is a
+  quick patch for testing only. Before going live with real users, replace
+  with a proper rate limiter/queue, exponential backoff, and check Angel
+  One's documented per-second/per-minute limits.
+- **Options token lookup is slow**: `searchScrip` is called per strike/expiry
+  on every request. Should cache resolved symbol tokens (they don't change
+  within a trading day) instead of re-searching each time.
+
