@@ -1,16 +1,11 @@
-// Backtest / Paper Trade module.
-// TODO: REAL INTEGRATION — POST strategyId to /api/backtest/run,
-// which pulls historical data via marketDataService and simulates fills.
-
 export default function BacktestPage() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Backtest & Paper Trade</h1>
-      <div className="bg-[var(--bg-panel)] p-4 rounded-lg border border-[var(--border-subtle)]">
-        <p className="text-[var(--text-muted)] text-sm">
+    <div className="px-4 pt-4 space-y-4">
+      <h1 className="text-lg font-bold">Backtest &amp; Paper Trade</h1>
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
+        <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
           Select a saved strategy, choose a date range, and run a backtest.
-          Results (equity curve, win rate, max drawdown) will render here
-          once the backtest engine is connected.
+          Results — equity curve, win rate, max drawdown — will render here.
         </p>
       </div>
     </div>

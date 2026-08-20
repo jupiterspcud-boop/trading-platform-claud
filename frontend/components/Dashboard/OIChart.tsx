@@ -14,17 +14,17 @@ const mockData = [
 
 export default function OIChart() {
   return (
-    <div className="bg-[var(--bg-panel)] p-4 rounded-lg border border-[var(--border-subtle)] h-80">
-      <p className="text-sm text-[var(--text-muted)] mb-2">
+    <div className="bg-[var(--bg-card)] p-4 rounded-lg border border-[var(--border)] h-80">
+      <p className="text-sm text-[var(--text-secondary)] mb-2">
         Open Interest by Strike (mock data — connect market feed)
       </p>
       <ResponsiveContainer width="100%" height="90%">
         <LineChart data={mockData}>
-          <XAxis dataKey="strike" stroke="#7C8794" />
-          <YAxis stroke="#7C8794" />
+          <XAxis dataKey="strike" stroke="#8B96A5" />
+          <YAxis stroke="#8B96A5" />
           <Tooltip />
-          <Line type="monotone" dataKey="callOI" stroke="#16C784" name="Call OI" />
-          <Line type="monotone" dataKey="putOI" stroke="#EA3943" name="Put OI" />
+          <Line type="monotone" dataKey="callOI" stroke="#00C896" name="Call OI" />
+          <Line type="monotone" dataKey="putOI" stroke="#FF5B5B" name="Put OI" />
         </LineChart>
       </ResponsiveContainer>
     </div>

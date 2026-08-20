@@ -3,17 +3,28 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #0B0F14;
-  --bg-panel: #131920;
-  --accent-buy: #16C784;
-  --accent-sell: #EA3943;
-  --text-primary: #E6EDF3;
-  --text-muted: #7C8794;
-  --border-subtle: #232B33;
+  --bg-app: #0A0E14;
+  --bg-card: #131923;
+  --bg-card-hover: #1A2230;
+  --border: #232B38;
+  --text-primary: #F1F5F9;
+  --text-secondary: #8B96A5;
+  --accent-buy: #00C896;
+  --accent-sell: #FF5B5B;
+  --accent-brand: #4C7CF3;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--bg-primary);
+  background: var(--bg-app);
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  display: none;
 }

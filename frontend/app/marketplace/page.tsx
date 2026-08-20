@@ -1,16 +1,10 @@
-// Marketplace module — publish/follow strategies with verified track record.
-// TODO: REAL INTEGRATION — performance stats must come from actual
-// executed trades in the DB, never self-reported numbers.
-
 export default function MarketplacePage() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Marketplace</h1>
-      <div className="bg-[var(--bg-panel)] p-4 rounded-lg border border-[var(--border-subtle)]">
-        <p className="text-[var(--text-muted)] text-sm">
-          No public strategies yet. Once you have a verified backtest or
-          live track record, you can publish a strategy here for others
-          to copy (with your consent-based revenue share).
+    <div className="px-4 pt-4 space-y-4">
+      <h1 className="text-lg font-bold">Marketplace</h1>
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
+        <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
+          No public strategies yet. Once you have a verified backtest or live track record, you can publish a strategy here for others to copy.
         </p>
       </div>
     </div>
