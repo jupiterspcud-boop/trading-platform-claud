@@ -1,17 +1,139 @@
-// TODO: REAL INTEGRATION REQUIRED
-// This must connect to a licensed market data provider. Options include:
-//   - Your broker's data API (e.g. Zerodha Kite Connect historical/quote API)
-//   - A dedicated vendor (e.g. Global Datafeeds, TrueData) — paid, licensed
-// Do NOT scrape NSE/BSE websites directly — against exchange terms of use.
+// REAL INTEGRATION — Angel One SmartAPI
+// Docs: https://smartapi.angelbroking.com/docs
+//
+// Required env vars (set in Render dashboard, never commit to git):
+//   ANGEL_API_KEY, ANGEL_CLIENT_ID, ANGEL_PIN, ANGEL_TOTP_SECRET
 
-export async function getOptionChain(symbol: string) {
-  throw new Error('Not implemented: connect a licensed market data provider');
+import axios from 'axios';
+import { authenticator } from 'otplib';
+import { supabase } from './supabaseClient';
+
+const BASE_URL = 'https://apiconnect.angelone.in';
+
+const API_KEY = process.env.ANGEL_API_KEY || '';
+const CLIENT_ID = process.env.ANGEL_CLIENT_ID || '';
+const PIN = process.env.ANGEL_PIN || '';
+const TOTP_SECRET = process.env.ANGEL_TOTP_SECRET || '';
+
+let cachedJwtToken: string | null = null;
+let tokenExpiry = 0;
+
+function commonHeaders(jwt?: string) {
+  return {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-UserType': 'USER',
+    'X-SourceID': 'WEB',
+    'X-ClientLocalIP': '127.0.0.1',
+    'X-ClientPublicIP': '127.0.0.1',
+    'X-MACAddress': '00:00:00:00:00:00',
+    'X-PrivateKey': API_KEY,
+    ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+  };
 }
 
-export async function getGreeks(symbol: string, expiry: string) {
-  throw new Error('Not implemented');
+// Step 1: Login with clientcode + PIN + TOTP (generated fresh each time from secret)
+async function login(): Promise<string> {
+  if (cachedJwtToken && Date.now() < tokenExpiry) return cachedJwtToken;
+
+  if (!API_KEY || !CLIENT_ID || !PIN || !TOTP_SECRET) {
+    throw new Error('Angel One credentials missing in environment variables');
+  }
+
+  const totp = authenticator.generate(TOTP_SECRET);
+
+  const res = await axios.post(
+    `${BASE_URL}/rest/auth/angelbroking/user/v1/loginByPassword`,
+    { clientcode: CLIENT_ID, password: PIN, totp },
+    { headers: commonHeaders() }
+  );
+
+  if (!res.data?.status) {
+    throw new Error(`Angel One login failed: ${JSON.stringify(res.data)}`);
+  }
+
+  cachedJwtToken = res.data.data.jwtToken;
+  tokenExpiry = Date.now() + 6 * 60 * 60 * 1000; // ~6 hours, refresh before actual expiry
+  return cachedJwtToken as string;
 }
 
-export async function getHistoricalData(symbol: string, from: string, to: string) {
-  throw new Error('Not implemented');
+// Step 2: Fetch historical OHLC candles for a given symbol token
+// exchange: 'NSE' | 'NFO' | 'BSE' | 'BFO'
+// interval: 'ONE_MINUTE' | 'FIVE_MINUTE' | 'ONE_DAY' etc.
+export async function getHistoricalOHLC(
+  symbolToken: string,
+  exchange: string,
+  interval: string,
+  fromDate: string, // 'YYYY-MM-DD HH:mm'
+  toDate: string
+) {
+  const jwt = await login();
+
+  const res = await axios.post(
+    `${BASE_URL}/rest/secure/angelbroking/historical/v1/getCandleData`,
+    {
+      exchange,
+      symboltoken: symbolToken,
+      interval,
+      fromdate: fromDate,
+      todate: toDate,
+    },
+    { headers: commonHeaders(jwt) }
+  );
+
+  if (!res.data?.status) {
+    throw new Error(`Historical data fetch failed: ${JSON.stringify(res.data)}`);
+  }
+
+  // Each row: [timestamp, open, high, low, close, volume]
+  return res.data.data as [string, number, number, number, number, number][];
 }
+
+// Step 3: Save spot OHLC candles into Supabase spot_ohlc table
+export async function saveSpotOHLC(instrumentSymbol: string, candles: [string, number, number, number, number, number][]) {
+  const { data: instrument, error: instErr } = await supabase
+    .from('instruments')
+    .select('id')
+    .eq('symbol', instrumentSymbol)
+    .single();
+
+  if (instErr || !instrument) throw new Error(`Instrument not found: ${instrumentSymbol}`);
+
+  const rows = candles.map(([time, open, high, low, close, volume]) => ({
+    instrument_id: instrument.id,
+    candle_time: time,
+    open,
+    high,
+    low,
+    close,
+    volume,
+  }));
+
+  const { error } = await supabase.from('spot_ohlc').upsert(rows, {
+    onConflict: 'instrument_id,candle_time',
+  });
+
+  if (error) throw new Error(`Supabase insert failed: ${error.message}`);
+  return rows.length;
+}
+
+// Convenience: fetch + store in one call. Call this from a route or a scheduled job.
+export async function syncSpotOHLC(
+  instrumentSymbol: string,
+  symbolToken: string,
+  exchange: string,
+  interval: string,
+  fromDate: string,
+  toDate: string
+) {
+  const candles = await getHistoricalOHLC(symbolToken, exchange, interval, fromDate, toDate);
+  const saved = await saveSpotOHLC(instrumentSymbol, candles);
+  return { fetched: candles.length, saved };
+}
+
+// TODO: Options OHLC (ITM/ATM/OTM) needs the correct option symboltoken for each
+// strike + expiry. Angel One publishes a full instrument list here:
+// https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json
+// Look up the token for the strike/expiry you want, then call getHistoricalOHLC
+// with exchange='NFO' and that token, and compute moneyness (ITM/ATM/OTM) by
+// comparing the strike to the spot price before saving to options_ohlc.
