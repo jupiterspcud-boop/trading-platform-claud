@@ -150,17 +150,37 @@ function buildOptionTradingSymbol(underlying: string, expiryDDMMMYY: string, str
   return `${underlying}${expiryDDMMMYY}${strike}${optType}`;
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // Look up the symbol token for a given trading symbol using Angel One's search API.
+// Retries once after a short pause if rate-limited (HTTP 403).
 async function searchScripToken(tradingSymbol: string, exchange: string): Promise<string> {
   const jwt = await login();
-  const res = await axios.post(
-    `${BASE_URL}/rest/secure/angelbroking/order/v1/searchScrip`,
-    { exchange, searchscrip: tradingSymbol },
-    { headers: commonHeaders(jwt) }
-  );
-  const match = res.data?.data?.find((d: any) => d.tradingsymbol === tradingSymbol);
-  if (!match) throw new Error(`Symbol token not found for ${tradingSymbol}`);
-  return match.symboltoken;
+  try {
+    const res = await axios.post(
+      `${BASE_URL}/rest/secure/angelbroking/order/v1/searchScrip`,
+      { exchange, searchscrip: tradingSymbol },
+      { headers: commonHeaders(jwt) }
+    );
+    const match = res.data?.data?.find((d: any) => d.tradingsymbol === tradingSymbol);
+    if (!match) throw new Error(`Symbol token not found for ${tradingSymbol}`);
+    return match.symboltoken;
+  } catch (err: any) {
+    if (err.response?.status === 403) {
+      await sleep(1500);
+      const res = await axios.post(
+        `${BASE_URL}/rest/secure/angelbroking/order/v1/searchScrip`,
+        { exchange, searchscrip: tradingSymbol },
+        { headers: commonHeaders(jwt) }
+      );
+      const match = res.data?.data?.find((d: any) => d.tradingsymbol === tradingSymbol);
+      if (!match) throw new Error(`Symbol token not found for ${tradingSymbol}`);
+      return match.symboltoken;
+    }
+    throw err;
+  }
 }
 
 function computeMoneyness(spot: number, strike: number, optType: 'CE' | 'PE'): 'ITM' | 'ATM' | 'OTM' {
@@ -214,6 +234,7 @@ export async function syncOptionsOHLC(
   for (const strike of strikes) {
     for (const optType of ['CE', 'PE'] as const) {
       try {
+        await sleep(800); // avoid hitting Angel One rate limits
         const tradingSymbol = buildOptionTradingSymbol(underlying, expiryDDMMMYY, strike, optType);
         const token = await searchScripToken(tradingSymbol, exchange);
         const candles = await getHistoricalOHLC(token, exchange, interval, fromDate, toDate);
