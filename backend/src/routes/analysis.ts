@@ -45,4 +45,28 @@ router.get('/quick-test', async (req, res) => {
   }
 });
 
+// Known Angel One symbol tokens for supported indices.
+// GIFTNIFTY is NOT available via Angel One (separate NSE IX exchange) — skipped.
+const INSTRUMENT_TOKENS: Record<string, { token: string; exchange: string }> = {
+  NIFTY50: { token: '99926000', exchange: 'NSE' },
+  BANKNIFTY: { token: '99926009', exchange: 'NSE' },
+  SENSEX: { token: '99919000', exchange: 'BSE' },
+};
+
+// GET /api/analysis/sync-all — syncs last 7 days daily OHLC for all supported indices.
+// Mobile-friendly: just open this URL in a browser.
+router.get('/sync-all', async (req, res) => {
+  const results: Record<string, any> = {};
+  for (const [symbol, { token, exchange }] of Object.entries(INSTRUMENT_TOKENS)) {
+    try {
+      const r = await syncSpotOHLC(symbol, token, exchange, 'ONE_DAY', '2026-08-10 09:15', '2026-08-19 15:30');
+      results[symbol] = { success: true, ...r };
+    } catch (err: any) {
+      results[symbol] = { success: false, error: err.message };
+    }
+  }
+  results['GIFTNIFTY'] = { success: false, error: 'Not available via Angel One — needs a separate NSE IX data source' };
+  res.json(results);
+});
+
 export default router;
