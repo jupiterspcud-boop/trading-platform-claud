@@ -138,3 +138,112 @@ export async function syncSpotOHLC(
 // Look up the token for the strike/expiry you want, then call getHistoricalOHLC
 // with exchange='NFO' and that token, and compute moneyness (ITM/ATM/OTM) by
 // comparing the strike to the spot price before saving to options_ohlc.
+
+// ============================================================
+// OPTIONS DATA — ITM / ATM / OTM
+// ============================================================
+
+// Angel One trading symbol format for options: e.g. "NIFTY28AUG25C24600CE"
+// (varies slightly — weekly options use DDMMMYY, monthly use DDMMMYY too but
+// last Thursday of month). You must know the exact expiry date beforehand.
+function buildOptionTradingSymbol(underlying: string, expiryDDMMMYY: string, strike: number, optType: 'CE' | 'PE') {
+  return `${underlying}${expiryDDMMMYY}${strike}${optType}`;
+}
+
+// Look up the symbol token for a given trading symbol using Angel One's search API.
+async function searchScripToken(tradingSymbol: string, exchange: string): Promise<string> {
+  const jwt = await login();
+  const res = await axios.post(
+    `${BASE_URL}/rest/secure/angelbroking/order/v1/searchScrip`,
+    { exchange, searchscrip: tradingSymbol },
+    { headers: commonHeaders(jwt) }
+  );
+  const match = res.data?.data?.find((d: any) => d.tradingsymbol === tradingSymbol);
+  if (!match) throw new Error(`Symbol token not found for ${tradingSymbol}`);
+  return match.symboltoken;
+}
+
+function computeMoneyness(spot: number, strike: number, optType: 'CE' | 'PE'): 'ITM' | 'ATM' | 'OTM' {
+  const diff = Math.abs(spot - strike);
+  // Treat strikes within ~0.25% of spot as ATM (adjust as needed per instrument step size)
+  if (diff / spot < 0.0025) return 'ATM';
+  if (optType === 'CE') return strike < spot ? 'ITM' : 'OTM';
+  return strike > spot ? 'ITM' : 'OTM';
+}
+
+// Get the most recent spot close price already stored, to compute moneyness against.
+async function getLatestSpotPrice(instrumentSymbol: string): Promise<number> {
+  const { data: instrument, error: instErr } = await supabase
+    .from('instruments')
+    .select('id')
+    .eq('symbol', instrumentSymbol)
+    .single();
+  if (instErr || !instrument) throw new Error(`Instrument not found: ${instrumentSymbol}`);
+
+  const { data, error } = await supabase
+    .from('spot_ohlc')
+    .select('close')
+    .eq('instrument_id', instrument.id)
+    .order('candle_time', { ascending: false })
+    .limit(1)
+    .single();
+  if (error || !data) throw new Error(`No spot price found for ${instrumentSymbol} — run spot sync first`);
+  return Number(data.close);
+}
+
+// Sync OHLC for a list of option strikes (both CE and PE) for one expiry.
+// underlying: 'NIFTY' (Angel One's naming, not 'NIFTY50')
+// instrumentSymbol: matches the `instruments` table row, e.g. 'NIFTY50'
+export async function syncOptionsOHLC(
+  instrumentSymbol: string,
+  underlying: string,
+  expiryDDMMMYY: string, // e.g. '28AUG25'
+  expiryDateISO: string, // e.g. '2026-08-28' for the DB column
+  strikes: number[],
+  exchange: string, // 'NFO' or 'BFO'
+  interval: string,
+  fromDate: string,
+  toDate: string
+) {
+  const spot = await getLatestSpotPrice(instrumentSymbol);
+  const { data: instrument } = await supabase.from('instruments').select('id').eq('symbol', instrumentSymbol).single();
+  if (!instrument) throw new Error(`Instrument not found: ${instrumentSymbol}`);
+
+  const results: any[] = [];
+
+  for (const strike of strikes) {
+    for (const optType of ['CE', 'PE'] as const) {
+      try {
+        const tradingSymbol = buildOptionTradingSymbol(underlying, expiryDDMMMYY, strike, optType);
+        const token = await searchScripToken(tradingSymbol, exchange);
+        const candles = await getHistoricalOHLC(token, exchange, interval, fromDate, toDate);
+        const moneyness = computeMoneyness(spot, strike, optType);
+
+        const rows = candles.map(([time, open, high, low, close, volume]) => ({
+          instrument_id: instrument.id,
+          expiry_date: expiryDateISO,
+          strike,
+          option_type: optType,
+          moneyness,
+          candle_time: time,
+          open,
+          high,
+          low,
+          close,
+          volume,
+        }));
+
+        const { error } = await supabase.from('options_ohlc').upsert(rows, {
+          onConflict: 'instrument_id,expiry_date,strike,option_type,candle_time',
+        });
+        if (error) throw new Error(error.message);
+
+        results.push({ strike, optType, moneyness, saved: rows.length });
+      } catch (err: any) {
+        results.push({ strike, optType, error: err.message });
+      }
+    }
+  }
+
+  return { spot, results };
+}
