@@ -145,12 +145,15 @@ router.get('/quick-test-options-banknifty', async (req, res) => {
 });
 
 // GET /api/analysis/quick-test-options-sensex
+// NOTE: SENSEX monthly options use a DIFFERENT trading symbol format than
+// NIFTY/BANKNIFTY — no day-of-month, just YY+MMM (e.g. "SENSEX26AUG77500CE"
+// for the August 2026 monthly expiry), confirmed via Angel One's own forum.
 router.get('/quick-test-options-sensex', async (req, res) => {
   try {
     const result = await syncOptionsOHLC(
       'SENSEX',
       'SENSEX',
-      '27AUG26',
+      '26AUG', // YY + MMM only for SENSEX monthly — not DDMMMYY like NIFTY
       '2026-08-27',
       [77400, 77500, 77600], // ATM ~77500, spot was 77,468.45
       'BFO',
