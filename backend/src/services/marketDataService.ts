@@ -68,7 +68,7 @@ export async function getHistoricalOHLC(
   toDate: string
 ) {
   const jwt = await login();
-  const delays = [0, 1500, 3000];
+  const delays = [0, 1500, 3000, 5000]; // initial try + 3 retries
 
   let lastError: any;
   for (const delay of delays) {
@@ -242,7 +242,7 @@ export async function syncOptionsOHLC(
   for (const strike of strikes) {
     for (const optType of ['CE', 'PE'] as const) {
       try {
-        await sleep(1200); // avoid hitting Angel One rate limits
+        await sleep(1800); // avoid hitting Angel One rate limits
         const tradingSymbol = buildOptionTradingSymbol(underlying, expiryDDMMMYY, strike, optType);
         const token = await searchScripToken(tradingSymbol, exchange);
         const candles = await getHistoricalOHLC(token, exchange, interval, fromDate, toDate);
