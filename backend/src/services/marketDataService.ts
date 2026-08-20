@@ -164,30 +164,31 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Look up the symbol token for a given trading symbol using Angel One's search API.
-// Retries with exponential backoff on rate-limit (403) or transient "not found"
-// (Angel One's search API sometimes returns partial/empty results under load).
-async function searchScripToken(tradingSymbol: string, exchange: string): Promise<string> {
-  const jwt = await login();
-  const delays = [0, 1500, 3000]; // initial try + 2 retries
+// Angel One publishes their FULL tradable instrument list here, refreshed daily.
+// Fetching this once and searching locally is far more reliable than their
+// searchScrip API (which has been inconsistent — sometimes misses valid symbols).
+const SCRIP_MASTER_URL = 'https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json';
 
-  let lastError: any;
-  for (const delay of delays) {
-    if (delay > 0) await sleep(delay);
-    try {
-      const res = await axios.post(
-        `${BASE_URL}/rest/secure/angelbroking/order/v1/searchScrip`,
-        { exchange, searchscrip: tradingSymbol },
-        { headers: commonHeaders(jwt) }
-      );
-      const match = res.data?.data?.find((d: any) => d.tradingsymbol === tradingSymbol);
-      if (match) return match.symboltoken;
-      lastError = new Error(`Symbol token not found for ${tradingSymbol}`);
-    } catch (err: any) {
-      lastError = err;
-    }
+let scripMasterCache: any[] | null = null;
+let scripMasterCachedAt = 0;
+const SCRIP_MASTER_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+async function getScripMaster(): Promise<any[]> {
+  if (scripMasterCache && Date.now() - scripMasterCachedAt < SCRIP_MASTER_TTL) {
+    return scripMasterCache;
   }
-  throw lastError;
+  const res = await axios.get(SCRIP_MASTER_URL, { timeout: 30000 });
+  scripMasterCache = res.data;
+  scripMasterCachedAt = Date.now();
+  return scripMasterCache as any[];
+}
+
+// Look up the symbol token for a given trading symbol from the full instrument list.
+async function searchScripToken(tradingSymbol: string, exchange: string): Promise<string> {
+  const master = await getScripMaster();
+  const match = master.find((d: any) => d.symbol === tradingSymbol && d.exch_seg === exchange);
+  if (!match) throw new Error(`Symbol token not found for ${tradingSymbol} on ${exchange}`);
+  return match.token;
 }
 
 function computeMoneyness(spot: number, strike: number, optType: 'CE' | 'PE'): 'ITM' | 'ATM' | 'OTM' {
