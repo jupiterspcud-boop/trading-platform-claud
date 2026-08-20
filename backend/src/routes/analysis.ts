@@ -103,21 +103,57 @@ router.post('/sync-options', async (req, res) => {
 });
 
 // GET /api/analysis/quick-test-options — mobile-friendly, click-and-go.
-// Uses NIFTY, nearest weekly-style strikes around the last known spot price.
-// NOTE: expiryDDMMMYY below is a placeholder — update it to a real, currently
-// tradable NIFTY weekly/monthly expiry date before running, or this will fail
-// with "Symbol token not found" (expired/wrong dates won't resolve).
+// Uses real expiry dates and ATM strikes confirmed from the live Angel One
+// option chain on 20 Aug 2026. Update these periodically as expiries roll.
 router.get('/quick-test-options', async (req, res) => {
   try {
-    const expiryDDMMMYY = (req.query.expiry as string) || '28AUG25';
-    const expiryDateISO = (req.query.expiryISO as string) || '2026-08-28';
     const result = await syncOptionsOHLC(
       'NIFTY50',
       'NIFTY',
-      expiryDDMMMYY,
-      expiryDateISO,
-      [24000, 24050, 24100], // roughly ATM based on last known spot ~24048
+      '25AUG26',
+      '2026-08-25',
+      [24150, 24200, 24250], // ATM ~24200, spot was 24,225.45
       'NFO',
+      'ONE_DAY',
+      '2026-08-15 09:15',
+      '2026-08-19 15:30'
+    );
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/analysis/quick-test-options-banknifty
+router.get('/quick-test-options-banknifty', async (req, res) => {
+  try {
+    const result = await syncOptionsOHLC(
+      'BANKNIFTY',
+      'BANKNIFTY',
+      '25AUG26',
+      '2026-08-25',
+      [57400, 57500, 57600], // ATM ~57500, spot was 57,507.65
+      'NFO',
+      'ONE_DAY',
+      '2026-08-15 09:15',
+      '2026-08-19 15:30'
+    );
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/analysis/quick-test-options-sensex
+router.get('/quick-test-options-sensex', async (req, res) => {
+  try {
+    const result = await syncOptionsOHLC(
+      'SENSEX',
+      'SENSEX',
+      '27AUG26',
+      '2026-08-27',
+      [77400, 77500, 77600], // ATM ~77500, spot was 77,468.45
+      'BFO',
       'ONE_DAY',
       '2026-08-15 09:15',
       '2026-08-19 15:30'
