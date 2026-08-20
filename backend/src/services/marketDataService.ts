@@ -68,25 +68,35 @@ export async function getHistoricalOHLC(
   toDate: string
 ) {
   const jwt = await login();
+  const delays = [0, 1500, 3000];
 
-  const res = await axios.post(
-    `${BASE_URL}/rest/secure/angelbroking/historical/v1/getCandleData`,
-    {
-      exchange,
-      symboltoken: symbolToken,
-      interval,
-      fromdate: fromDate,
-      todate: toDate,
-    },
-    { headers: commonHeaders(jwt) }
-  );
+  let lastError: any;
+  for (const delay of delays) {
+    if (delay > 0) await sleep(delay);
+    try {
+      const res = await axios.post(
+        `${BASE_URL}/rest/secure/angelbroking/historical/v1/getCandleData`,
+        {
+          exchange,
+          symboltoken: symbolToken,
+          interval,
+          fromdate: fromDate,
+          todate: toDate,
+        },
+        { headers: commonHeaders(jwt) }
+      );
 
-  if (!res.data?.status) {
-    throw new Error(`Historical data fetch failed: ${JSON.stringify(res.data)}`);
+      if (!res.data?.status) {
+        lastError = new Error(`Historical data fetch failed: ${JSON.stringify(res.data)}`);
+        continue;
+      }
+
+      return res.data.data as [string, number, number, number, number, number][];
+    } catch (err: any) {
+      lastError = err;
+    }
   }
-
-  // Each row: [timestamp, open, high, low, close, volume]
-  return res.data.data as [string, number, number, number, number, number][];
+  throw lastError;
 }
 
 // Step 3: Save spot OHLC candles into Supabase spot_ohlc table
@@ -155,32 +165,29 @@ function sleep(ms: number) {
 }
 
 // Look up the symbol token for a given trading symbol using Angel One's search API.
-// Retries once after a short pause if rate-limited (HTTP 403).
+// Retries with exponential backoff on rate-limit (403) or transient "not found"
+// (Angel One's search API sometimes returns partial/empty results under load).
 async function searchScripToken(tradingSymbol: string, exchange: string): Promise<string> {
   const jwt = await login();
-  try {
-    const res = await axios.post(
-      `${BASE_URL}/rest/secure/angelbroking/order/v1/searchScrip`,
-      { exchange, searchscrip: tradingSymbol },
-      { headers: commonHeaders(jwt) }
-    );
-    const match = res.data?.data?.find((d: any) => d.tradingsymbol === tradingSymbol);
-    if (!match) throw new Error(`Symbol token not found for ${tradingSymbol}`);
-    return match.symboltoken;
-  } catch (err: any) {
-    if (err.response?.status === 403) {
-      await sleep(1500);
+  const delays = [0, 1500, 3000]; // initial try + 2 retries
+
+  let lastError: any;
+  for (const delay of delays) {
+    if (delay > 0) await sleep(delay);
+    try {
       const res = await axios.post(
         `${BASE_URL}/rest/secure/angelbroking/order/v1/searchScrip`,
         { exchange, searchscrip: tradingSymbol },
         { headers: commonHeaders(jwt) }
       );
       const match = res.data?.data?.find((d: any) => d.tradingsymbol === tradingSymbol);
-      if (!match) throw new Error(`Symbol token not found for ${tradingSymbol}`);
-      return match.symboltoken;
+      if (match) return match.symboltoken;
+      lastError = new Error(`Symbol token not found for ${tradingSymbol}`);
+    } catch (err: any) {
+      lastError = err;
     }
-    throw err;
   }
+  throw lastError;
 }
 
 function computeMoneyness(spot: number, strike: number, optType: 'CE' | 'PE'): 'ITM' | 'ATM' | 'OTM' {
@@ -234,7 +241,7 @@ export async function syncOptionsOHLC(
   for (const strike of strikes) {
     for (const optType of ['CE', 'PE'] as const) {
       try {
-        await sleep(800); // avoid hitting Angel One rate limits
+        await sleep(1200); // avoid hitting Angel One rate limits
         const tradingSymbol = buildOptionTradingSymbol(underlying, expiryDDMMMYY, strike, optType);
         const token = await searchScripToken(tradingSymbol, exchange);
         const candles = await getHistoricalOHLC(token, exchange, interval, fromDate, toDate);
