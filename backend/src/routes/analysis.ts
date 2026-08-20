@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { syncSpotOHLC, syncOptionsOHLC } from '../services/marketDataService';
+import { supabase } from '../services/supabaseClient';
 
 const router = Router();
 
@@ -168,3 +169,102 @@ router.get('/quick-test-options-sensex', async (req, res) => {
 });
 
 export default router;
+
+// GET /api/analysis/latest-spot — latest close price for each instrument,
+// with % change vs previous day. Used by the frontend Dashboard.
+router.get('/latest-spot', async (req, res) => {
+  try {
+    
+    const { data: instruments } = await supabase.from('instruments').select('id, symbol');
+    if (!instruments) return res.json([]);
+
+    const results = [];
+    for (const inst of instruments) {
+      const { data: candles } = await supabase
+        .from('spot_ohlc')
+        .select('close, candle_time')
+        .eq('instrument_id', inst.id)
+        .order('candle_time', { ascending: false })
+        .limit(2);
+
+      if (!candles || candles.length === 0) {
+        results.push({ symbol: inst.symbol, value: null, change: null, pct: null });
+        continue;
+      }
+
+      const latest = Number(candles[0].close);
+      const prev = candles[1] ? Number(candles[1].close) : latest;
+      const change = latest - prev;
+      const pct = prev !== 0 ? (change / prev) * 100 : 0;
+
+      results.push({
+        symbol: inst.symbol,
+        value: latest,
+        change: Number(change.toFixed(2)),
+        pct: Number(pct.toFixed(2)),
+        asOf: candles[0].candle_time,
+      });
+    }
+    res.json(results);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/analysis/option-chain?symbol=NIFTY50 — latest saved option chain
+// (all strikes/types for the most recent expiry we have data for).
+router.get('/option-chain', async (req, res) => {
+  try {
+    
+    const symbol = (req.query.symbol as string) || 'NIFTY50';
+
+    const { data: instrument } = await supabase.from('instruments').select('id').eq('symbol', symbol).single();
+    if (!instrument) return res.status(404).json({ error: 'Instrument not found' });
+
+    const { data: latestExpiryRow } = await supabase
+      .from('options_ohlc')
+      .select('expiry_date')
+      .eq('instrument_id', instrument.id)
+      .order('expiry_date', { ascending: false })
+      .limit(1)
+      .single();
+    if (!latestExpiryRow) return res.json({ symbol, expiry: null, spot: null, chain: [] });
+
+    const { data: rows } = await supabase
+      .from('options_ohlc')
+      .select('strike, option_type, moneyness, close, candle_time')
+      .eq('instrument_id', instrument.id)
+      .eq('expiry_date', latestExpiryRow.expiry_date)
+      .order('candle_time', { ascending: false });
+
+    // Keep only the most recent candle per (strike, option_type)
+    const seen = new Set<string>();
+    const latestRows = (rows || []).filter((r: any) => {
+      const key = `${r.strike}-${r.option_type}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const strikeMap: Record<string, any> = {};
+    for (const r of latestRows) {
+      const s = String(r.strike);
+      if (!strikeMap[s]) strikeMap[s] = { strike: r.strike };
+      if (r.option_type === 'CE') strikeMap[s].callLtp = r.close, strikeMap[s].callMoneyness = r.moneyness;
+      if (r.option_type === 'PE') strikeMap[s].putLtp = r.close, strikeMap[s].putMoneyness = r.moneyness;
+    }
+    const chain = Object.values(strikeMap).sort((a: any, b: any) => a.strike - b.strike);
+
+    const { data: spotRow } = await supabase
+      .from('spot_ohlc')
+      .select('close')
+      .eq('instrument_id', instrument.id)
+      .order('candle_time', { ascending: false })
+      .limit(1)
+      .single();
+
+    res.json({ symbol, expiry: latestExpiryRow.expiry_date, spot: spotRow?.close || null, chain });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});

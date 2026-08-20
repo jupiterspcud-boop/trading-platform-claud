@@ -1,30 +1,56 @@
-// Dashboard — landing page after login.
-// TODO: REAL INTEGRATION — replace mock data with live calls to
-// /api/analysis/summary once fully wired to the frontend.
+'use client';
+// Dashboard — landing page. Fetches real index prices from Supabase via
+// the backend API (set up in backend/src/routes/analysis.ts /latest-spot).
 
-const indices = [
-  { name: 'NIFTY 50', value: '24,225.45', change: '+147.15', pct: '+0.61%', up: true },
-  { name: 'BANK NIFTY', value: '57,507.65', change: '+267.90', pct: '+0.47%', up: true },
-  { name: 'SENSEX', value: '77,468.45', change: '+558.77', pct: '+0.73%', up: true },
-];
+import { useEffect, useState } from 'react';
+import { fetchLatestSpot, LatestSpot } from '@/lib/api';
+
+const DISPLAY_NAMES: Record<string, string> = {
+  NIFTY50: 'NIFTY 50',
+  BANKNIFTY: 'BANK NIFTY',
+  SENSEX: 'SENSEX',
+  GIFTNIFTY: 'GIFT NIFTY',
+};
 
 export default function Dashboard() {
+  const [indices, setIndices] = useState<LatestSpot[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchLatestSpot()
+      .then(setIndices)
+      .catch((err) => setError(err.message));
+  }, []);
+
   return (
     <div className="px-4 pt-4 space-y-5">
-      {/* Index ticker cards */}
+      {/* Index ticker cards — real data from Supabase */}
       <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
-        {indices.map((idx) => (
-          <div
-            key={idx.name}
-            className="shrink-0 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-3.5 py-2.5 min-w-[130px]"
-          >
-            <p className="text-[11px] text-[var(--text-secondary)] font-medium">{idx.name}</p>
-            <p className="text-[15px] font-semibold mt-0.5">{idx.value}</p>
-            <p className={`text-[11px] font-medium mt-0.5 ${idx.up ? 'text-[var(--accent-buy)]' : 'text-[var(--accent-sell)]'}`}>
-              {idx.change} ({idx.pct})
-            </p>
-          </div>
-        ))}
+        {error && (
+          <p className="text-[12px] text-[var(--accent-sell)]">Couldn't load prices: {error}</p>
+        )}
+        {!indices && !error && (
+          <p className="text-[12px] text-[var(--text-secondary)]">Loading live prices…</p>
+        )}
+        {indices?.filter((idx) => idx.value !== null).map((idx) => {
+          const up = (idx.change ?? 0) >= 0;
+          return (
+            <div
+              key={idx.symbol}
+              className="shrink-0 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-3.5 py-2.5 min-w-[130px]"
+            >
+              <p className="text-[11px] text-[var(--text-secondary)] font-medium">
+                {DISPLAY_NAMES[idx.symbol] || idx.symbol}
+              </p>
+              <p className="text-[15px] font-semibold mt-0.5">
+                {idx.value?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+              </p>
+              <p className={`text-[11px] font-medium mt-0.5 ${up ? 'text-[var(--accent-buy)]' : 'text-[var(--accent-sell)]'}`}>
+                {up ? '+' : ''}{idx.change} ({up ? '+' : ''}{idx.pct}%)
+              </p>
+            </div>
+          );
+        })}
       </div>
 
       {/* Summary cards */}
@@ -53,7 +79,7 @@ export default function Dashboard() {
       </div>
 
       <p className="text-center text-[11px] text-[var(--text-secondary)] pt-2">
-        Live index prices — connect market feed for full option chain data.
+        Live index prices from Angel One, synced daily via cron-job.org.
       </p>
     </div>
   );
