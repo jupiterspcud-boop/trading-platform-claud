@@ -268,3 +268,88 @@ router.get('/option-chain', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// GET /api/analysis/pcr-maxpain?symbol=NIFTY50
+// Computes Put-Call Ratio and Max Pain from the latest stored option chain.
+router.get('/pcr-maxpain', async (req, res) => {
+  try {
+    const symbol = (req.query.symbol as string) || 'NIFTY50';
+
+    const { data: instrument } = await supabase.from('instruments').select('id').eq('symbol', symbol).single();
+    if (!instrument) return res.status(404).json({ error: 'Instrument not found' });
+
+    const { data: latestExpiryRow } = await supabase
+      .from('options_ohlc')
+      .select('expiry_date')
+      .eq('instrument_id', instrument.id)
+      .order('expiry_date', { ascending: false })
+      .limit(1)
+      .single();
+    if (!latestExpiryRow) return res.json({ symbol, pcr: null, maxPain: null, note: 'No option data synced yet' });
+
+    const { data: rows } = await supabase
+      .from('options_ohlc')
+      .select('strike, option_type, close, open_interest, candle_time')
+      .eq('instrument_id', instrument.id)
+      .eq('expiry_date', latestExpiryRow.expiry_date)
+      .order('candle_time', { ascending: false });
+
+    // Keep only the most recent candle per (strike, option_type)
+    const seen = new Set<string>();
+    const latest = (rows || []).filter((r: any) => {
+      const key = `${r.strike}-${r.option_type}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const hasOI = latest.some((r: any) => r.open_interest !== null);
+
+    let pcr: number | null = null;
+    if (hasOI) {
+      const totalCallOI = latest.filter((r: any) => r.option_type === 'CE').reduce((s: number, r: any) => s + (r.open_interest || 0), 0);
+      const totalPutOI = latest.filter((r: any) => r.option_type === 'PE').reduce((s: number, r: any) => s + (r.open_interest || 0), 0);
+      pcr = totalCallOI > 0 ? Number((totalPutOI / totalCallOI).toFixed(2)) : null;
+    }
+
+    // Max Pain: the strike where total option WRITERS' payout (loss) is minimized.
+    // For each candidate strike, sum (for every other strike) the intrinsic
+    // value option buyers would collect if price settled at the candidate strike.
+    const strikes = [...new Set(latest.map((r: any) => Number(r.strike)))];
+    const byStrike: Record<number, { ce?: number; pe?: number; ceOI?: number; peOI?: number }> = {};
+    for (const r of latest) {
+      const s = Number(r.strike);
+      if (!byStrike[s]) byStrike[s] = {};
+      if (r.option_type === 'CE') { byStrike[s].ce = Number(r.close); byStrike[s].ceOI = r.open_interest || 0; }
+      if (r.option_type === 'PE') { byStrike[s].pe = Number(r.close); byStrike[s].peOI = r.open_interest || 0; }
+    }
+
+    let maxPain: number | null = null;
+    if (hasOI && strikes.length > 0) {
+      let minPayout = Infinity;
+      for (const candidate of strikes) {
+        let payout = 0;
+        for (const s of strikes) {
+          const ceOI = byStrike[s].ceOI || 0;
+          const peOI = byStrike[s].peOI || 0;
+          if (candidate > s) payout += (candidate - s) * ceOI; // ITM calls
+          if (candidate < s) payout += (s - candidate) * peOI; // ITM puts
+        }
+        if (payout < minPayout) {
+          minPayout = payout;
+          maxPain = candidate;
+        }
+      }
+    }
+
+    res.json({
+      symbol,
+      expiry: latestExpiryRow.expiry_date,
+      pcr,
+      maxPain,
+      note: hasOI ? null : 'Open Interest not available yet — re-sync options data after the OI capture fix',
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});

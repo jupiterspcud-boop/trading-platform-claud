@@ -34,3 +34,17 @@ export async function fetchOptionChain(symbol: string): Promise<OptionChainRespo
   if (!res.ok) throw new Error('Failed to fetch option chain');
   return res.json();
 }
+
+export type PcrMaxPain = {
+  symbol: string;
+  expiry: string | null;
+  pcr: number | null;
+  maxPain: number | null;
+  note?: string | null;
+};
+
+export async function fetchPcrMaxPain(symbol: string): Promise<PcrMaxPain> {
+  const res = await fetch(`${BACKEND_URL}/api/analysis/pcr-maxpain?symbol=${symbol}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch PCR/Max Pain');
+  return res.json();
+}

@@ -91,7 +91,9 @@ export async function getHistoricalOHLC(
         continue;
       }
 
-      return res.data.data as [string, number, number, number, number, number][];
+      // Angel One returns 7 fields for F&O instruments (adds Open Interest as
+      // the 7th value) but only 6 for indices/equity — type it as flexible.
+      return res.data.data as [string, number, number, number, number, number, number?][];
     } catch (err: any) {
       lastError = err;
     }
@@ -248,7 +250,7 @@ export async function syncOptionsOHLC(
         const candles = await getHistoricalOHLC(token, exchange, interval, fromDate, toDate);
         const moneyness = computeMoneyness(spot, strike, optType);
 
-        const rows = candles.map(([time, open, high, low, close, volume]) => ({
+        const rows = candles.map(([time, open, high, low, close, volume, oi]) => ({
           instrument_id: instrument.id,
           expiry_date: expiryDateISO,
           strike,
@@ -260,6 +262,7 @@ export async function syncOptionsOHLC(
           low,
           close,
           volume,
+          open_interest: oi ?? null,
         }));
 
         const { error } = await supabase.from('options_ohlc').upsert(rows, {

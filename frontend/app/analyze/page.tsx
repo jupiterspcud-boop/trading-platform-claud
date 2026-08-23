@@ -1,17 +1,22 @@
 'use client';
-// Analyze module — real NIFTY option chain from Supabase via backend API.
+// Analyze module — real NIFTY option chain + PCR/Max Pain from Supabase via backend API.
 
 import { useEffect, useState } from 'react';
-import { fetchOptionChain, OptionChainResponse } from '@/lib/api';
+import { fetchOptionChain, fetchPcrMaxPain, OptionChainResponse, PcrMaxPain } from '@/lib/api';
 
 export default function AnalyzePage() {
   const [data, setData] = useState<OptionChainResponse | null>(null);
+  const [pcrData, setPcrData] = useState<PcrMaxPain | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOptionChain('NIFTY50')
       .then(setData)
       .catch((err) => setError(err.message));
+
+    fetchPcrMaxPain('NIFTY50')
+      .then(setPcrData)
+      .catch(() => {}); // non-critical — chain still renders without it
   }, []);
 
   return (
@@ -25,6 +30,25 @@ export default function AnalyzePage() {
           </p>
         )}
       </div>
+
+      {/* PCR / Max Pain / IV cards */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3 text-center">
+          <p className="text-[11px] text-[var(--text-secondary)] uppercase tracking-wide">PCR</p>
+          <p className="text-[16px] font-bold mt-1">{pcrData?.pcr ?? '--'}</p>
+        </div>
+        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3 text-center">
+          <p className="text-[11px] text-[var(--text-secondary)] uppercase tracking-wide">Max Pain</p>
+          <p className="text-[16px] font-bold mt-1">{pcrData?.maxPain ?? '--'}</p>
+        </div>
+        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3 text-center">
+          <p className="text-[11px] text-[var(--text-secondary)] uppercase tracking-wide">IV</p>
+          <p className="text-[16px] font-bold mt-1">--</p>
+        </div>
+      </div>
+      {pcrData?.note && (
+        <p className="text-[11px] text-[var(--text-secondary)] -mt-2">{pcrData.note}</p>
+      )}
 
       {error && <p className="text-[13px] text-[var(--accent-sell)]">Couldn't load option chain: {error}</p>}
       {!data && !error && <p className="text-[13px] text-[var(--text-secondary)]">Loading…</p>}
