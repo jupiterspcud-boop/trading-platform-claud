@@ -102,9 +102,10 @@ export async function getHistoricalOI(
       lastError = err;
     }
   }
-  // OI is a nice-to-have (used for PCR/Max Pain) — don't fail the whole sync if it errors.
-  console.warn('OI fetch failed, continuing without it:', lastError?.message);
-  return [];
+  // OI is a nice-to-have (used for PCR/Max Pain) — don't fail the whole sync,
+  // but DO surface the real reason so it's visible in the sync results instead
+  // of silently saving null forever.
+  throw lastError || new Error('OI fetch failed for unknown reason');
 }
 
 export async function getHistoricalOHLC(
@@ -296,7 +297,13 @@ export async function syncOptionsOHLC(
         const token = await searchScripToken(tradingSymbol, exchange);
         const candles = await getHistoricalOHLC(token, exchange, interval, fromDate, toDate);
         await sleep(1000);
-        const oiRows = await getHistoricalOI(token, exchange, interval, fromDate, toDate);
+        let oiRows: [string, number][] = [];
+        let oiError: string | null = null;
+        try {
+          oiRows = await getHistoricalOI(token, exchange, interval, fromDate, toDate);
+        } catch (oiErr: any) {
+          oiError = oiErr.message;
+        }
         const oiMap = new Map(oiRows.map(([time, oi]) => [time, oi]));
         const moneyness = computeMoneyness(spot, strike, optType);
 
@@ -320,7 +327,7 @@ export async function syncOptionsOHLC(
         });
         if (error) throw new Error(error.message);
 
-        results.push({ strike, optType, moneyness, saved: rows.length });
+        results.push({ strike, optType, moneyness, saved: rows.length, oiError });
       } catch (err: any) {
         results.push({ strike, optType, error: err.message });
       }
