@@ -347,7 +347,11 @@ router.get('/pcr-maxpain', async (req, res) => {
       expiry: latestExpiryRow.expiry_date,
       pcr,
       maxPain,
-      note: hasOI ? null : 'Open Interest not available yet — re-sync options data after the OI capture fix',
+      note: hasOI
+        ? null
+        : symbol === 'SENSEX'
+          ? "SENSEX Open Interest isn't available — Angel One's OI history API doesn't support the BSE F&O (BFO) segment. PCR/Max Pain will show for NIFTY and BANKNIFTY only."
+          : 'Open Interest not available yet — re-sync options data first.',
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

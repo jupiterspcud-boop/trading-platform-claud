@@ -46,4 +46,10 @@
 - **Options token lookup is slow**: `searchScrip` is called per strike/expiry
   on every request. Should cache resolved symbol tokens (they don't change
   within a trading day) instead of re-searching each time.
+- **SENSEX Open Interest is unavailable (Angel One platform limitation, not
+  our bug)**: Angel One's `getOIData` endpoint returns `AB1012 Invalid Bad
+  Request` for the BFO (BSE F&O) exchange segment — it appears to only
+  support NFO (NSE F&O). NIFTY and BANKNIFTY OI/PCR/Max Pain work fine;
+  SENSEX OHLC still syncs, just without OI/PCR/Max Pain. Re-check Angel
+  One's docs periodically in case this segment gets added later.
 
