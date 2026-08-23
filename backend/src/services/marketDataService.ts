@@ -102,7 +102,7 @@ export async function getHistoricalOHLC(
 }
 
 // Step 3: Save spot OHLC candles into Supabase spot_ohlc table
-export async function saveSpotOHLC(instrumentSymbol: string, candles: [string, number, number, number, number, number][]) {
+export async function saveSpotOHLC(instrumentSymbol: string, candles: [string, number, number, number, number, number, number?][]) {
   const { data: instrument, error: instErr } = await supabase
     .from('instruments')
     .select('id')
