@@ -85,8 +85,19 @@ export async function getHistoricalOI(
         lastError = new Error(`OI data fetch failed: ${JSON.stringify(res.data)}`);
         continue;
       }
-      // Response rows are typically [timestamp, oi]
-      return res.data.data as [string, number][];
+      // Angel One's response row shape isn't consistently documented — handle
+      // both possible formats: [time, oi] arrays, or {time, oi} style objects.
+      const raw = res.data.data || [];
+      if (!Array.isArray(raw)) {
+        lastError = new Error(`Unexpected OI response shape: ${JSON.stringify(res.data.data).slice(0, 200)}`);
+        continue;
+      }
+      return raw.map((row: any): [string, number] => {
+        if (Array.isArray(row)) return [row[0], Number(row[1])];
+        const time = row.time || row.timestamp || row.date || row.candle_time;
+        const oi = row.oi ?? row.openInterest ?? row.OI ?? row.opnInterest;
+        return [time, Number(oi)];
+      });
     } catch (err: any) {
       lastError = err;
     }
