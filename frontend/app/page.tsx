@@ -1,6 +1,7 @@
 'use client';
 // Dashboard — landing page. Fetches real index prices from Supabase via
-// the backend API (set up in backend/src/routes/analysis.ts /latest-spot).
+// the backend API. Structured Dhan-style: market status, watchlist ticker,
+// portfolio-style summary, quick actions.
 
 import { useEffect, useState } from 'react';
 import { fetchLatestSpot, LatestSpot } from '@/lib/api';
@@ -12,56 +13,98 @@ const DISPLAY_NAMES: Record<string, string> = {
   GIFTNIFTY: 'GIFT NIFTY',
 };
 
+function getMarketStatus() {
+  // IST market hours: Mon-Fri, 9:15 AM - 3:30 PM
+  const now = new Date();
+  const istOffset = 5.5 * 60; // minutes
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  const ist = new Date(utc + istOffset * 60000);
+  const day = ist.getDay(); // 0=Sun, 6=Sat
+  const minutes = ist.getHours() * 60 + ist.getMinutes();
+  const isWeekday = day >= 1 && day <= 5;
+  const isOpen = isWeekday && minutes >= 9 * 60 + 15 && minutes <= 15 * 60 + 30;
+
+  if (!isOpen) return { label: 'Market Closed', open: false };
+
+  const closeMinutes = 15 * 60 + 30;
+  const remaining = closeMinutes - minutes;
+  const h = Math.floor(remaining / 60);
+  const m = remaining % 60;
+  return { label: `Closes in ${h}h ${m}m`, open: true };
+}
+
 export default function Dashboard() {
   const [indices, setIndices] = useState<LatestSpot[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [market, setMarket] = useState(getMarketStatus());
 
   useEffect(() => {
     fetchLatestSpot()
       .then(setIndices)
       .catch((err) => setError(err.message));
+
+    const timer = setInterval(() => setMarket(getMarketStatus()), 60000);
+    return () => clearInterval(timer);
   }, []);
 
   return (
     <div className="px-4 pt-4 space-y-5">
-      {/* Index ticker cards — real data from Supabase */}
-      <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
-        {error && (
-          <p className="text-[12px] text-[var(--accent-sell)]">Couldn't load prices: {error}</p>
-        )}
-        {!indices && !error && (
-          <p className="text-[12px] text-[var(--text-secondary)]">Loading live prices…</p>
-        )}
-        {indices?.filter((idx) => idx.value !== null).map((idx) => {
-          const up = (idx.change ?? 0) >= 0;
-          return (
-            <div
-              key={idx.symbol}
-              className="shrink-0 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-3.5 py-2.5 min-w-[130px]"
-            >
-              <p className="text-[11px] text-[var(--text-secondary)] font-medium">
-                {DISPLAY_NAMES[idx.symbol] || idx.symbol}
-              </p>
-              <p className="text-[15px] font-semibold mt-0.5">
-                {idx.value?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-              </p>
-              <p className={`text-[11px] font-medium mt-0.5 ${up ? 'text-[var(--accent-buy)]' : 'text-[var(--accent-sell)]'}`}>
-                {up ? '+' : ''}{idx.change} ({up ? '+' : ''}{idx.pct}%)
-              </p>
-            </div>
-          );
-        })}
+      {/* Market status badge */}
+      <div className="flex items-center gap-2">
+        <span
+          className={`w-2 h-2 rounded-full ${market.open ? 'bg-[var(--accent-buy)]' : 'bg-[var(--text-secondary)]'}`}
+        />
+        <span className="text-[12px] text-[var(--text-secondary)] font-medium">{market.label}</span>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
-          <p className="text-[12px] text-[var(--text-secondary)]">Active Strategies</p>
-          <p className="text-2xl font-bold mt-1">0</p>
+      {/* Watchlist — real index prices from Supabase */}
+      <div>
+        <p className="text-[12px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-2">
+          Watchlist
+        </p>
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
+          {error && (
+            <p className="text-[12px] text-[var(--accent-sell)]">Couldn't load prices: {error}</p>
+          )}
+          {!indices && !error && (
+            <p className="text-[12px] text-[var(--text-secondary)]">Loading live prices…</p>
+          )}
+          {indices?.filter((idx) => idx.value !== null).map((idx) => {
+            const up = (idx.change ?? 0) >= 0;
+            return (
+              <div
+                key={idx.symbol}
+                className="shrink-0 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-3.5 py-2.5 min-w-[130px]"
+              >
+                <p className="text-[11px] text-[var(--text-secondary)] font-medium">
+                  {DISPLAY_NAMES[idx.symbol] || idx.symbol}
+                </p>
+                <p className="text-[15px] font-semibold mt-0.5">
+                  {idx.value?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                </p>
+                <p className={`text-[11px] font-medium mt-0.5 ${up ? 'text-[var(--accent-buy)]' : 'text-[var(--accent-sell)]'}`}>
+                  {up ? '+' : ''}{idx.change} ({up ? '+' : ''}{idx.pct}%)
+                </p>
+              </div>
+            );
+          })}
         </div>
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
-          <p className="text-[12px] text-[var(--text-secondary)]">Today's P&amp;L</p>
-          <p className="text-2xl font-bold mt-1 text-[var(--text-primary)]">₹0</p>
+      </div>
+
+      {/* Portfolio-style summary */}
+      <div>
+        <p className="text-[12px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-2">
+          Summary
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
+            <p className="text-[12px] text-[var(--text-secondary)]">Active Strategies</p>
+            <p className="text-2xl font-bold mt-1">0</p>
+          </div>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
+            <p className="text-[12px] text-[var(--text-secondary)]">Today's P&amp;L</p>
+            <p className="text-2xl font-bold mt-1 text-[var(--text-primary)]">₹0</p>
+          </div>
         </div>
       </div>
 
