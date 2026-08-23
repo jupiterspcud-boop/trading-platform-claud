@@ -60,6 +60,42 @@ async function login(): Promise<string> {
 // Step 2: Fetch historical OHLC candles for a given symbol token
 // exchange: 'NSE' | 'NFO' | 'BSE' | 'BFO'
 // interval: 'ONE_MINUTE' | 'FIVE_MINUTE' | 'ONE_DAY' etc.
+// Angel One's candle data does NOT include Open Interest — it has a SEPARATE
+// endpoint for OI history. Confirmed via Angel One SmartAPI forum.
+export async function getHistoricalOI(
+  symbolToken: string,
+  exchange: string,
+  interval: string,
+  fromDate: string,
+  toDate: string
+): Promise<[string, number][]> {
+  const jwt = await login();
+  const delays = [0, 1500, 3000, 5000];
+
+  let lastError: any;
+  for (const delay of delays) {
+    if (delay > 0) await sleep(delay);
+    try {
+      const res = await axios.post(
+        `${BASE_URL}/rest/secure/angelbroking/historical/v1/getOIData`,
+        { exchange, symboltoken: symbolToken, interval, fromdate: fromDate, todate: toDate },
+        { headers: commonHeaders(jwt) }
+      );
+      if (!res.data?.status) {
+        lastError = new Error(`OI data fetch failed: ${JSON.stringify(res.data)}`);
+        continue;
+      }
+      // Response rows are typically [timestamp, oi]
+      return res.data.data as [string, number][];
+    } catch (err: any) {
+      lastError = err;
+    }
+  }
+  // OI is a nice-to-have (used for PCR/Max Pain) — don't fail the whole sync if it errors.
+  console.warn('OI fetch failed, continuing without it:', lastError?.message);
+  return [];
+}
+
 export async function getHistoricalOHLC(
   symbolToken: string,
   exchange: string,
@@ -248,9 +284,12 @@ export async function syncOptionsOHLC(
         const tradingSymbol = buildOptionTradingSymbol(underlying, expiryDDMMMYY, strike, optType);
         const token = await searchScripToken(tradingSymbol, exchange);
         const candles = await getHistoricalOHLC(token, exchange, interval, fromDate, toDate);
+        await sleep(1000);
+        const oiRows = await getHistoricalOI(token, exchange, interval, fromDate, toDate);
+        const oiMap = new Map(oiRows.map(([time, oi]) => [time, oi]));
         const moneyness = computeMoneyness(spot, strike, optType);
 
-        const rows = candles.map(([time, open, high, low, close, volume, oi]) => ({
+        const rows = candles.map(([time, open, high, low, close, volume]) => ({
           instrument_id: instrument.id,
           expiry_date: expiryDateISO,
           strike,
@@ -262,7 +301,7 @@ export async function syncOptionsOHLC(
           low,
           close,
           volume,
-          open_interest: oi ?? null,
+          open_interest: oiMap.get(time) ?? null,
         }));
 
         const { error } = await supabase.from('options_ohlc').upsert(rows, {
