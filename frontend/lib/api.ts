@@ -49,6 +49,15 @@ export async function fetchPcrMaxPain(symbol: string): Promise<PcrMaxPain> {
   return res.json();
 }
 
+export type SpotHistoryPoint = { candle_time: string; close: number };
+
+export async function fetchSpotHistory(symbol: string): Promise<SpotHistoryPoint[]> {
+  const res = await fetch(`${BACKEND_URL}/api/analysis/spot-history?symbol=${symbol}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch spot history');
+  const data = await res.json();
+  return data.points || [];
+}
+
 export type Strategy = {
   id: string;
   name: string;

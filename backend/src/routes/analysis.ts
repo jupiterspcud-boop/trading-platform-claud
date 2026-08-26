@@ -372,3 +372,23 @@ router.get('/technical-levels', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// GET /api/analysis/spot-history?symbol=NIFTY50 — full stored history for charting
+router.get('/spot-history', async (req, res) => {
+  try {
+    const symbol = (req.query.symbol as string) || 'NIFTY50';
+    const { data: instrument } = await supabase.from('instruments').select('id').eq('symbol', symbol).single();
+    if (!instrument) return res.status(404).json({ error: 'Instrument not found' });
+
+    const { data, error } = await supabase
+      .from('spot_ohlc')
+      .select('candle_time, close')
+      .eq('instrument_id', instrument.id)
+      .order('candle_time', { ascending: true });
+
+    if (error) throw new Error(error.message);
+    res.json({ symbol, points: data || [] });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});

@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { fetchLatestSpot, LatestSpot } from '@/lib/api';
+import OIChart from '@/components/Dashboard/OIChart';
 
 const DISPLAY_NAMES: Record<string, string> = {
   NIFTY50: 'Nifty 50',
@@ -112,6 +113,9 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
+
+        {/* Live price chart — real historical data */}
+        <OIChart symbol="NIFTY50" label="Nifty 50" />
 
         {/* Key Indices — Dhan's simple list-row pattern */}
         <div>
