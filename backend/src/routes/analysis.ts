@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { syncSpotOHLC, syncOptionsOHLC } from '../services/marketDataService';
+import { syncSpotOHLC, syncOptionsOHLC, getTechnicalLevels } from '../services/marketDataService';
 import { supabase } from '../services/supabaseClient';
 
 const router = Router();
@@ -358,3 +358,17 @@ router.get('/pcr-maxpain', async (req, res) => {
   }
 });
 
+
+// GET /api/analysis/technical-levels — ORB, Previous Day, Monday,
+// OI-based Support/Resistance, ITM strike, PCR bias — all in one call.
+router.get('/technical-levels', async (req, res) => {
+  try {
+    const symbol = (req.query.symbol as string) || 'NIFTY50';
+    const token = (req.query.token as string) || '99926000';
+    const exchange = (req.query.exchange as string) || 'NSE';
+    const result = await getTechnicalLevels(symbol, token, exchange);
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});

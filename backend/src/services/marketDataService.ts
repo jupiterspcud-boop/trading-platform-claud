@@ -336,3 +336,133 @@ export async function syncOptionsOHLC(
 
   return { spot, results };
 }
+
+// ============================================================
+// TECHNICAL LEVELS — ORB, Previous Day, Monday, OI Support/Resistance
+// ============================================================
+
+function getMostRecentMonday(from: Date): Date {
+  const d = new Date(from);
+  const day = d.getDay(); // 0=Sun
+  const diff = day === 0 ? 6 : day - 1; // days since Monday
+  d.setDate(d.getDate() - diff);
+  return d;
+}
+
+function fmtDateForAngel(d: Date, time: string) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${time}`;
+}
+
+export async function getTechnicalLevels(instrumentSymbol: string, symbolToken: string, exchange: string) {
+  const today = new Date();
+  const monday = getMostRecentMonday(today);
+
+  // 1. Today's 5-min candles (for the "2nd 5-min candle" opening range)
+  const todayCandles = await getHistoricalOHLC(
+    symbolToken, exchange, 'FIVE_MINUTE',
+    fmtDateForAngel(today, '09:15'), fmtDateForAngel(today, '15:30')
+  );
+
+  const secondCandle = todayCandles[1]; // index 1 = 2nd candle
+  const orb = secondCandle
+    ? { open: secondCandle[1], high: secondCandle[2], low: secondCandle[3], close: secondCandle[4], sourceCandle: '2nd 5-min candle' }
+    : null;
+
+  // 2. Previous trading day's daily open/close (from stored spot_ohlc)
+  const { data: instrument } = await supabase.from('instruments').select('id').eq('symbol', instrumentSymbol).single();
+  let previousDay: any = null;
+  let mondayLevel: any = null;
+
+  if (instrument) {
+    const { data: recentDays } = await supabase
+      .from('spot_ohlc')
+      .select('candle_time, open, close, high, low')
+      .eq('instrument_id', instrument.id)
+      .order('candle_time', { ascending: false })
+      .limit(10);
+
+    if (recentDays && recentDays.length > 1) {
+      previousDay = { ...recentDays[1], sourceCandle: 'Previous day daily candle' };
+    }
+
+    // Find Monday's candle among recent days
+    const mondayStr = monday.toISOString().slice(0, 10);
+    const mondayRow = recentDays?.find((r: any) => r.candle_time.slice(0, 10) === mondayStr);
+    if (mondayRow) mondayLevel = { ...mondayRow, sourceCandle: 'Monday daily candle' };
+  }
+
+  // 3. Support/Resistance from OI (reuse existing PCR/MaxPain-style OI aggregation)
+  let support: number | null = null;
+  let resistance: number | null = null;
+  let pcr: number | null = null;
+  let spot: number | null = null;
+
+  if (instrument) {
+    const { data: latestExpiryRow } = await supabase
+      .from('options_ohlc').select('expiry_date').eq('instrument_id', instrument.id)
+      .order('expiry_date', { ascending: false }).limit(1).single();
+
+    if (latestExpiryRow) {
+      const { data: rows } = await supabase
+        .from('options_ohlc')
+        .select('strike, option_type, open_interest, candle_time')
+        .eq('instrument_id', instrument.id)
+        .eq('expiry_date', latestExpiryRow.expiry_date)
+        .order('candle_time', { ascending: false });
+
+      const seen = new Set<string>();
+      const latest = (rows || []).filter((r: any) => {
+        const key = `${r.strike}-${r.option_type}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      const callRows = latest.filter((r: any) => r.option_type === 'CE' && r.open_interest);
+      const putRows = latest.filter((r: any) => r.option_type === 'PE' && r.open_interest);
+
+      // Resistance = strike with max Call OI, Support = strike with max Put OI
+      if (callRows.length) resistance = Number(callRows.reduce((a: any, b: any) => (b.open_interest > a.open_interest ? b : a)).strike);
+      if (putRows.length) support = Number(putRows.reduce((a: any, b: any) => (b.open_interest > a.open_interest ? b : a)).strike);
+
+      const totalCallOI = callRows.reduce((s: number, r: any) => s + r.open_interest, 0);
+      const totalPutOI = putRows.reduce((s: number, r: any) => s + r.open_interest, 0);
+      pcr = totalCallOI > 0 ? Number((totalPutOI / totalCallOI).toFixed(2)) : null;
+    }
+
+    const { data: spotRow } = await supabase
+      .from('spot_ohlc').select('close').eq('instrument_id', instrument.id)
+      .order('candle_time', { ascending: false }).limit(1).single();
+    spot = spotRow ? Number(spotRow.close) : null;
+  }
+
+  // 4. ITM strike selection based on spot
+  // For a bullish bias (spot above support), ITM Call = nearest strike BELOW spot.
+  // This is a simple default; refine once you tell us the exact directional rule.
+  let itmStrike: number | null = null;
+  if (spot) {
+    itmStrike = Math.floor(spot / 50) * 50; // nearest 50-point strike below spot (NIFTY step)
+  }
+
+  // 5. PCR bias interpretation
+  let pcrBias: string | null = null;
+  if (pcr !== null) {
+    if (pcr < 0.9) pcrBias = 'Below 0.9 — bearish bias, Put buying opportunity zone';
+    else if (pcr > 1.3) pcrBias = 'Above 1.3 — bullish bias, Call buying opportunity zone';
+    else pcrBias = 'Neutral zone (0.9–1.3)';
+  }
+
+  return {
+    note: '30-second candle marking (Point 1) needs live WebSocket data — not available from daily historical sync yet.',
+    spot,
+    orb,
+    previousDay,
+    mondayLevel,
+    support: support ? { strike: support, source: 'Max Put OI' } : null,
+    resistance: resistance ? { strike: resistance, source: 'Max Call OI' } : null,
+    pcr,
+    pcrBias,
+    itmStrike: itmStrike ? { strike: itmStrike, note: 'Nearest ITM Call strike below spot — confirm this matches your intended direction rule' } : null,
+  };
+}
