@@ -443,3 +443,27 @@ router.get('/backfill-history', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// GET /api/analysis/backfill-range?symbol=NIFTY50&from=2025-08-31&to=2025-11-29
+// Retry a specific failed date range from a chunked backfill.
+router.get('/backfill-range', async (req, res) => {
+  try {
+    const symbol = (req.query.symbol as string) || 'NIFTY50';
+    const from = (req.query.from as string) + ' 09:15';
+    const to = (req.query.to as string) + ' 15:30';
+
+    const TOKENS: Record<string, { token: string; exchange: string }> = {
+      NIFTY50: { token: '99926000', exchange: 'NSE' },
+      BANKNIFTY: { token: '99926009', exchange: 'NSE' },
+      SENSEX: { token: '99919000', exchange: 'BSE' },
+    };
+    const config = TOKENS[symbol];
+    if (!config) return res.status(400).json({ error: `Unsupported symbol: ${symbol}` });
+
+    const { syncSpotOHLC } = await import('../services/marketDataService');
+    const result = await syncSpotOHLC(symbol, config.token, config.exchange, 'ONE_DAY', from, to);
+    res.json({ success: true, symbol, from, to, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
