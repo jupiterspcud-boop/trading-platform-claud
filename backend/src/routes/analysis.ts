@@ -392,3 +392,54 @@ router.get('/spot-history', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// GET /api/analysis/backfill-history?symbol=NIFTY50&days=365
+// One-time bulk historical fetch — Angel One limits how much data per call,
+// so we fetch in ~90-day chunks internally to stay within their limits.
+router.get('/backfill-history', async (req, res) => {
+  try {
+    const symbol = (req.query.symbol as string) || 'NIFTY50';
+    const days = Number(req.query.days) || 365;
+
+    const TOKENS: Record<string, { token: string; exchange: string }> = {
+      NIFTY50: { token: '99926000', exchange: 'NSE' },
+      BANKNIFTY: { token: '99926009', exchange: 'NSE' },
+      SENSEX: { token: '99919000', exchange: 'BSE' },
+    };
+    const config = TOKENS[symbol];
+    if (!config) return res.status(400).json({ error: `Unsupported symbol: ${symbol}` });
+
+    const { syncSpotOHLC } = await import('../services/marketDataService');
+    const chunks: { from: string; to: string }[] = [];
+    const today = new Date();
+    let daysRemaining = days;
+    let chunkEnd = new Date(today);
+
+    while (daysRemaining > 0) {
+      const chunkDays = Math.min(90, daysRemaining);
+      const chunkStart = new Date(chunkEnd);
+      chunkStart.setDate(chunkStart.getDate() - chunkDays);
+      chunks.push({
+        from: chunkStart.toISOString().slice(0, 10) + ' 09:15',
+        to: chunkEnd.toISOString().slice(0, 10) + ' 15:30',
+      });
+      chunkEnd = new Date(chunkStart);
+      daysRemaining -= chunkDays;
+    }
+
+    const results: any[] = [];
+    for (const chunk of chunks) {
+      try {
+        const r = await syncSpotOHLC(symbol, config.token, config.exchange, 'ONE_DAY', chunk.from, chunk.to);
+        results.push({ ...chunk, ...r });
+        await new Promise((resolve) => setTimeout(resolve, 1200)); // rate-limit safety between chunks
+      } catch (err: any) {
+        results.push({ ...chunk, error: err.message });
+      }
+    }
+
+    res.json({ success: true, symbol, totalChunks: chunks.length, results });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
