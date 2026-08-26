@@ -2,11 +2,11 @@
 // Backtest — shows which strategy was selected (via ?strategyId=), and will
 // run the actual simulation once the backtest engine is built (next phase).
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Strategy } from '@/lib/api';
 
-export default function BacktestPage() {
+function BacktestContent() {
   const params = useSearchParams();
   const strategyId = params.get('strategyId');
   const [strategy, setStrategy] = useState<Strategy | null>(null);
@@ -60,5 +60,13 @@ export default function BacktestPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function BacktestPage() {
+  return (
+    <Suspense fallback={<div className="px-4 pt-4 text-[13px] text-[var(--text-secondary)]">Loading…</div>}>
+      <BacktestContent />
+    </Suspense>
   );
 }
