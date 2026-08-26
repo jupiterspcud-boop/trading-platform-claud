@@ -3,15 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --bg-app: #0A0E14;
-  --bg-card: #131923;
-  --bg-card-hover: #1A2230;
-  --border: #232B38;
-  --text-primary: #F1F5F9;
-  --text-secondary: #8B96A5;
+  --bg-app: #060708;
+  --bg-card: #121315;
+  --bg-card-hover: #1C1E21;
+  --border: #26282B;
+  --text-primary: #F5F5F5;
+  --text-secondary: #8A8D91;
   --accent-buy: #00C896;
   --accent-sell: #FF5B5B;
   --accent-brand: #4C7CF3;
+  --accent-warn: #FF9F1C;
 }
 
 * {
