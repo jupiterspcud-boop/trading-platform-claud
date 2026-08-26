@@ -1,10 +1,11 @@
 'use client';
-// Build — Strategy Library. Shows all saved strategies as cards; each has
-// a "Use" button (selects it for the Execute flow, once execution exists)
-// and a "Backtest" button (jumps to /backtest with this strategy pre-selected).
+// Build — Strategy Library with Create, Edit, Delete, Use, and Backtest.
 
 import { useEffect, useState } from 'react';
 import { fetchStrategies, Strategy } from '@/lib/api';
+import StrategyForm from '@/components/StrategyBuilder/StrategyForm';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://tradepulse-backend-l79z.onrender.com';
 
 function legsSummary(legs: any[]) {
   if (!legs || legs.length === 0) return 'No legs defined';
@@ -15,24 +16,65 @@ export default function BuildPage() {
   const [strategies, setStrategies] = useState<Strategy[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<Strategy | null>(null);
+
+  function reload() {
+    fetchStrategies().then(setStrategies).catch((err) => setError(err.message));
+  }
 
   useEffect(() => {
-    fetchStrategies().then(setStrategies).catch((err) => setError(err.message));
+    reload();
   }, []);
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this strategy?')) return;
+    await fetch(`${BACKEND_URL}/api/strategy/${id}`, { method: 'DELETE' });
+    reload();
+  }
 
   return (
     <div className="px-4 pt-4 pb-4 space-y-4">
-      <div>
-        <h1 className="text-lg font-bold">Strategy library</h1>
-        <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">
-          Pick a strategy to use or backtest.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold">Strategy library</h1>
+          <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">Create, edit, use, or backtest.</p>
+        </div>
+        {!showCreate && !editing && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="bg-[var(--accent-brand)] text-white text-[12px] font-semibold px-3.5 py-2 rounded-xl"
+          >
+            + New
+          </button>
+        )}
       </div>
+
+      {showCreate && (
+        <StrategyForm
+          onCancel={() => setShowCreate(false)}
+          onSaved={() => {
+            setShowCreate(false);
+            reload();
+          }}
+        />
+      )}
+
+      {editing && (
+        <StrategyForm
+          existing={editing}
+          onCancel={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            reload();
+          }}
+        />
+      )}
 
       {error && <p className="text-[13px] text-[var(--accent-sell)]">Couldn't load strategies: {error}</p>}
       {!strategies && !error && <p className="text-[13px] text-[var(--text-secondary)]">Loading…</p>}
-      {strategies && strategies.length === 0 && (
-        <p className="text-[13px] text-[var(--text-secondary)]">No strategies yet.</p>
+      {strategies && strategies.length === 0 && !showCreate && (
+        <p className="text-[13px] text-[var(--text-secondary)]">No strategies yet — tap "+ New" to create one.</p>
       )}
 
       <div className="space-y-3">
@@ -66,9 +108,7 @@ export default function BuildPage() {
                 <button
                   onClick={() => setSelectedId(s.id)}
                   className={`text-[13px] font-semibold py-2.5 rounded-xl ${
-                    isSelected
-                      ? 'bg-[var(--accent-brand)] text-white'
-                      : 'bg-[var(--bg-card-hover)] border border-[var(--border)]'
+                    isSelected ? 'bg-[var(--accent-brand)] text-white' : 'bg-[var(--bg-card-hover)] border border-[var(--border)]'
                   }`}
                 >
                   {isSelected ? 'In use' : 'Use'}
@@ -79,6 +119,20 @@ export default function BuildPage() {
                 >
                   Backtest
                 </a>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <button
+                  onClick={() => { setEditing(s); setShowCreate(false); }}
+                  className="text-[12px] font-medium py-2 rounded-xl text-[var(--text-secondary)] border border-[var(--border)]"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(s.id)}
+                  className="text-[12px] font-medium py-2 rounded-xl text-[var(--accent-sell)] border border-[var(--border)]"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           );

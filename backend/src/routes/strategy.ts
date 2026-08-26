@@ -71,3 +71,34 @@ router.get('/:id', async (req, res) => {
 });
 
 export default router;
+
+// PUT /api/strategy/:id — update an existing strategy
+router.put('/:id', async (req, res) => {
+  try {
+    const { name, symbol, legs, stopLossPct, targetPct, status } = req.body;
+    const updates: any = {};
+    if (name !== undefined) updates.name = name;
+    if (symbol !== undefined) updates.symbol = symbol;
+    if (legs !== undefined) updates.legs = legs;
+    if (stopLossPct !== undefined) updates.stop_loss_pct = stopLossPct;
+    if (targetPct !== undefined) updates.target_pct = targetPct;
+    if (status !== undefined) updates.status = status;
+
+    const { data, error } = await supabase.from('strategies').update(updates).eq('id', req.params.id).select().single();
+    if (error) throw new Error(error.message);
+    res.json({ success: true, strategy: data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/strategy/:id
+router.delete('/:id', async (req, res) => {
+  try {
+    const { error } = await supabase.from('strategies').delete().eq('id', req.params.id);
+    if (error) throw new Error(error.message);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
