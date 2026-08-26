@@ -48,3 +48,22 @@ export async function fetchPcrMaxPain(symbol: string): Promise<PcrMaxPain> {
   if (!res.ok) throw new Error('Failed to fetch PCR/Max Pain');
   return res.json();
 }
+
+export type Strategy = {
+  id: string;
+  name: string;
+  symbol: string;
+  legs: any[];
+  stop_loss_pct: number | null;
+  target_pct: number | null;
+  source: string;
+  status: string;
+  created_at: string;
+};
+
+export async function fetchStrategies(): Promise<Strategy[]> {
+  const res = await fetch(`${BACKEND_URL}/api/strategy/list`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch strategies');
+  const data = await res.json();
+  return data.strategies || [];
+}
