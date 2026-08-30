@@ -4,7 +4,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Strategy } from '@/lib/api';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://tradepulse-backend-l79z.onrender.com';
@@ -109,6 +109,35 @@ function BacktestContent() {
             <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3 text-center">
               <p className="text-[10px] text-[var(--text-secondary)] uppercase">Max Drawdown</p>
               <p className="text-[16px] font-bold mt-1 text-[var(--accent-sell)]">{result.maxDrawdownPct}%</p>
+            </div>
+          </div>
+
+          {/* Win vs Loss visual comparison */}
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
+            <p className="text-[12px] font-semibold mb-2">Win vs Loss</p>
+            <div style={{ width: '100%', height: 120 }}>
+              <ResponsiveContainer>
+                <BarChart
+                  data={[
+                    { label: 'Wins', count: result.wins },
+                    { label: 'Losses', count: result.losses },
+                  ]}
+                  layout="vertical"
+                  margin={{ top: 0, right: 20, bottom: 0, left: 0 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="label" type="category" tick={{ fontSize: 12, fill: '#F5F5F5' }} axisLine={false} tickLine={false} width={60} />
+                  <Tooltip contentStyle={{ background: '#121315', border: '1px solid #26282B', borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={28}>
+                    <Cell fill="#00C896" />
+                    <Cell fill="#FF5B5B" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-between mt-2 px-1">
+              <span className="text-[12px] text-[var(--accent-buy)] font-medium">{result.wins} wins</span>
+              <span className="text-[12px] text-[var(--accent-sell)] font-medium">{result.losses} losses</span>
             </div>
           </div>
 
