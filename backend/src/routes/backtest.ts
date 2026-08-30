@@ -9,16 +9,18 @@ const router = Router();
 // symbol, runs the price-action-based backtest engine, saves the result.
 router.post('/run', async (req, res) => {
   try {
-    const { strategyId } = req.body;
+    const { strategyId, symbol: symbolOverride } = req.body;
     if (!strategyId) return res.status(400).json({ success: false, error: 'strategyId is required' });
 
     const { data: strategy, error: stratErr } = await supabase
       .from('strategies').select('*').eq('id', strategyId).single();
     if (stratErr || !strategy) throw new Error('Strategy not found');
 
+    const symbolToUse = symbolOverride || strategy.symbol;
+
     const { data: instrument } = await supabase
-      .from('instruments').select('id').eq('symbol', strategy.symbol).single();
-    if (!instrument) throw new Error(`Instrument not found: ${strategy.symbol}`);
+      .from('instruments').select('id').eq('symbol', symbolToUse).single();
+    if (!instrument) throw new Error(`Instrument not found: ${symbolToUse}`);
 
     const { data: candles, error: candleErr } = await supabase
       .from('spot_ohlc')
@@ -51,7 +53,7 @@ router.post('/run', async (req, res) => {
     res.json({
       success: true,
       strategyName: strategy.name,
-      symbol: strategy.symbol,
+      symbol: symbolToUse,
       dataPointsUsed: candles.length,
       dateRange: `${candles[0].candle_time.slice(0, 10)} to ${candles[candles.length - 1].candle_time.slice(0, 10)}`,
       note: 'Price-action-based approximation. Short-vol/long-vol strategies now use this instrument\'s own volatility distribution (70th percentile of daily range) to decide win/loss, not a fixed threshold.',

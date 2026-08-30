@@ -1,6 +1,7 @@
 'use client';
 // Backtest — runs the real price-action-based backtest engine against
-// stored historical data and shows win rate, P&L, and an equity curve.
+// stored historical data. Includes an instrument switcher so any saved
+// strategy's logic can be tested against NIFTY/BANKNIFTY/SENSEX.
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -9,10 +10,17 @@ import { Strategy } from '@/lib/api';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://tradepulse-backend-l79z.onrender.com';
 
+const SYMBOLS = [
+  { value: 'NIFTY50', label: 'NIFTY 50' },
+  { value: 'BANKNIFTY', label: 'BANK NIFTY' },
+  { value: 'SENSEX', label: 'SENSEX' },
+];
+
 function BacktestContent() {
   const params = useSearchParams();
   const strategyId = params.get('strategyId');
   const [strategy, setStrategy] = useState<Strategy | null>(null);
+  const [symbol, setSymbol] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -21,12 +29,19 @@ function BacktestContent() {
     if (!strategyId) return;
     fetch(`${BACKEND_URL}/api/strategy/${strategyId}`)
       .then((r) => r.json())
-      .then((d) => (d.success ? setStrategy(d.strategy) : setError(d.error)))
+      .then((d) => {
+        if (d.success) {
+          setStrategy(d.strategy);
+          setSymbol(d.strategy.symbol); // default to the strategy's own symbol
+        } else {
+          setError(d.error);
+        }
+      })
       .catch((err) => setError(err.message));
   }, [strategyId]);
 
   async function handleRun() {
-    if (!strategyId) return;
+    if (!strategyId || !symbol) return;
     setRunning(true);
     setError(null);
     setResult(null);
@@ -34,7 +49,7 @@ function BacktestContent() {
       const res = await fetch(`${BACKEND_URL}/api/backtest/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ strategyId }),
+        body: JSON.stringify({ strategyId, symbol }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Backtest failed');
@@ -69,8 +84,29 @@ function BacktestContent() {
         <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl p-4 space-y-3">
           <div>
             <p className="text-[14px] font-semibold">{strategy.name}</p>
-            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{strategy.symbol}</p>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Saved for {strategy.symbol}</p>
           </div>
+
+          {/* Instrument switcher — test this strategy's logic against any instrument */}
+          <div>
+            <p className="text-[11px] text-[var(--text-secondary)] mb-1.5">Test against</p>
+            <div className="flex gap-2">
+              {SYMBOLS.map((s) => (
+                <button
+                  key={s.value}
+                  onClick={() => setSymbol(s.value)}
+                  className={`text-[12px] font-semibold px-3 py-1.5 rounded-full ${
+                    symbol === s.value
+                      ? 'bg-[var(--accent-brand)] text-white'
+                      : 'bg-[var(--bg-card-hover)] glass border border-[var(--border)] text-[var(--text-secondary)]'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex gap-4 text-[12px] text-[var(--text-secondary)]">
             {strategy.stop_loss_pct != null && <span>Stop-loss {strategy.stop_loss_pct}%</span>}
             {strategy.target_pct != null && <span>Target {strategy.target_pct}%</span>}
@@ -112,7 +148,6 @@ function BacktestContent() {
             </div>
           </div>
 
-          {/* Win vs Loss visual comparison */}
           <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl p-4">
             <p className="text-[12px] font-semibold mb-2">Win vs Loss</p>
             <div style={{ width: '100%', height: 120 }}>
