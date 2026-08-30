@@ -65,7 +65,7 @@ export default function Dashboard() {
         </div>
 
         {/* My Portfolio — Dhan-style grid summary card */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl overflow-hidden">
+        <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-4 pt-3.5 pb-3 border-b border-[var(--border)]">
             <span className="text-[14px] font-semibold">My Strategies</span>
             <div className="flex gap-3 text-[11px] text-[var(--text-secondary)]">
@@ -105,7 +105,7 @@ export default function Dashboard() {
               { label: 'Execute', href: '/execute', emoji: '⚡' },
             ].map((item) => (
               <a key={item.label} href={item.href} className="flex flex-col items-center gap-1.5">
-                <div className="w-12 h-12 rounded-full bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center text-[20px]">
+                <div className="w-12 h-12 rounded-full bg-[var(--bg-card)] glass border border-[var(--border)] flex items-center justify-center text-[20px]">
                   {item.emoji}
                 </div>
                 <span className="text-[11px] text-[var(--text-secondary)]">{item.label}</span>
@@ -120,7 +120,7 @@ export default function Dashboard() {
         {/* Key Indices — Dhan's simple list-row pattern */}
         <div>
           <p className="text-[13px] font-semibold mb-2">Key Indices</p>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl overflow-hidden">
+          <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl overflow-hidden">
             {error && <p className="text-[12px] text-[var(--accent-sell)] p-4">Couldn't load prices: {error}</p>}
             {indices?.filter((i) => i.value !== null).map((idx, i, arr) => {
               const up = (idx.change ?? 0) >= 0;

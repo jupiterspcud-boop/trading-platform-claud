@@ -56,7 +56,7 @@ function BacktestContent() {
       <h1 className="text-lg font-bold">Backtest & paper trade</h1>
 
       {!strategyId && (
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
+        <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl p-4">
           <p className="text-[13px] text-[var(--text-secondary)]">
             No strategy selected. Go to the Build tab and tap "Backtest" on a strategy.
           </p>
@@ -66,7 +66,7 @@ function BacktestContent() {
       {strategyId && error && <p className="text-[13px] text-[var(--accent-sell)]">{error}</p>}
 
       {strategy && (
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
+        <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl p-4 space-y-3">
           <div>
             <p className="text-[14px] font-semibold">{strategy.name}</p>
             <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{strategy.symbol}</p>
@@ -87,33 +87,33 @@ function BacktestContent() {
 
       {result && (
         <div className="space-y-3">
-          <div className="bg-[var(--bg-card-hover)] border border-[var(--accent-brand)] rounded-xl p-3">
+          <div className="bg-[var(--bg-card-hover)] glass border border-[var(--accent-brand)] rounded-xl p-3">
             <p className="text-[13px] font-semibold">{result.symbol} — {result.strategyType}</p>
             <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{result.dateRange} · {result.dataPointsUsed} trading days</p>
           </div>
-          <p className="text-[11px] text-[var(--text-secondary)] bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3">
+          <p className="text-[11px] text-[var(--text-secondary)] bg-[var(--bg-card)] glass border border-[var(--border)] rounded-xl p-3">
             {result.note}
           </p>
 
           <div className="grid grid-cols-3 gap-2.5">
-            <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3 text-center">
+            <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-xl p-3 text-center">
               <p className="text-[10px] text-[var(--text-secondary)] uppercase">Win Rate</p>
               <p className="text-[16px] font-bold mt-1">{result.winRatePct}%</p>
             </div>
-            <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3 text-center">
+            <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-xl p-3 text-center">
               <p className="text-[10px] text-[var(--text-secondary)] uppercase">Total P&amp;L</p>
               <p className={`text-[16px] font-bold mt-1 ${result.totalPnlPct >= 0 ? 'text-[var(--accent-buy)]' : 'text-[var(--accent-sell)]'}`}>
                 {result.totalPnlPct}%
               </p>
             </div>
-            <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3 text-center">
+            <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-xl p-3 text-center">
               <p className="text-[10px] text-[var(--text-secondary)] uppercase">Max Drawdown</p>
               <p className="text-[16px] font-bold mt-1 text-[var(--accent-sell)]">{result.maxDrawdownPct}%</p>
             </div>
           </div>
 
           {/* Win vs Loss visual comparison */}
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
+          <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl p-4">
             <p className="text-[12px] font-semibold mb-2">Win vs Loss</p>
             <div style={{ width: '100%', height: 120 }}>
               <ResponsiveContainer>
@@ -142,7 +142,7 @@ function BacktestContent() {
           </div>
 
           {chartData && chartData.length > 0 && (
-            <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
+            <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl p-4">
               <p className="text-[12px] font-semibold mb-2">Equity curve</p>
               <div style={{ width: '100%', height: 140 }}>
                 <ResponsiveContainer>
@@ -157,7 +157,7 @@ function BacktestContent() {
             </div>
           )}
 
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl overflow-hidden">
+          <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl overflow-hidden">
             <p className="text-[12px] font-semibold p-3 border-b border-[var(--border)]">Trade-by-trade</p>
             {result.trades.map((t: any, i: number) => (
               <div key={i} className="flex items-center justify-between px-3 py-2 text-[12px] border-b border-[var(--border)] last:border-0">

@@ -83,7 +83,7 @@ export default function BuildPage() {
           return (
             <div
               key={s.id}
-              className={`bg-[var(--bg-card)] border rounded-2xl p-4 ${isSelected ? 'border-[var(--accent-brand)]' : 'border-[var(--border)]'}`}
+              className={`bg-[var(--bg-card)] glass border rounded-2xl p-4 ${isSelected ? 'border-[var(--accent-brand)]' : 'border-[var(--border)]'}`}
             >
               <div className="flex items-start justify-between">
                 <div>
@@ -108,14 +108,14 @@ export default function BuildPage() {
                 <button
                   onClick={() => setSelectedId(s.id)}
                   className={`text-[13px] font-semibold py-2.5 rounded-xl ${
-                    isSelected ? 'bg-[var(--accent-brand)] text-white' : 'bg-[var(--bg-card-hover)] border border-[var(--border)]'
+                    isSelected ? 'bg-[var(--accent-brand)] text-white' : 'bg-[var(--bg-card-hover)] glass border border-[var(--border)]'
                   }`}
                 >
                   {isSelected ? 'In use' : 'Use'}
                 </button>
                 <a
                   href={`/backtest?strategyId=${s.id}`}
-                  className="text-[13px] font-semibold py-2.5 rounded-xl bg-[var(--bg-card-hover)] border border-[var(--border)] text-center"
+                  className="text-[13px] font-semibold py-2.5 rounded-xl bg-[var(--bg-card-hover)] glass border border-[var(--border)] text-center"
                 >
                   Backtest
                 </a>

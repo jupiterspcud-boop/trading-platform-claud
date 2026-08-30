@@ -9,11 +9,11 @@ export default function DragDropBuilder() {
   function addLeg() { setLegs([...legs, { type: 'CE', action: 'BUY', strike: 24200, qty: 1 }]); }
 
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
+    <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl p-4 space-y-3">
       <p className="text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Or build manually</p>
       <div className="flex gap-2 flex-wrap">
         {TEMPLATES.map((t) => (
-          <button key={t} className="px-3 py-1.5 text-[12px] rounded-full border border-[var(--border)] bg-[var(--bg-card-hover)]">{t}</button>
+          <button key={t} className="px-3 py-1.5 text-[12px] rounded-full border border-[var(--border)] bg-[var(--bg-card-hover)] glass">{t}</button>
         ))}
       </div>
       <div className="space-y-2 pt-1">

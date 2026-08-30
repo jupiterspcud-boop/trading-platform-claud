@@ -55,7 +55,7 @@ export default function AnalyzePage() {
       {data && data.chain.length > 0 && (
         <div>
           {/* Column headers */}
-          <div className="grid grid-cols-3 px-4 py-2 text-[10px] text-[var(--text-secondary)] font-semibold uppercase tracking-wide bg-[var(--bg-card)] border-b border-[var(--border)]">
+          <div className="grid grid-cols-3 px-4 py-2 text-[10px] text-[var(--text-secondary)] font-semibold uppercase tracking-wide bg-[var(--bg-card)] glass border-b border-[var(--border)]">
             <span>Call LTP</span>
             <span className="text-center">Strike</span>
             <span className="text-right">Put LTP</span>
@@ -66,7 +66,7 @@ export default function AnalyzePage() {
             return (
               <div
                 key={row.strike}
-                className={`grid grid-cols-3 px-4 py-3 text-[14px] border-b border-[var(--border)] ${isATM ? 'bg-[var(--bg-card-hover)]' : ''}`}
+                className={`grid grid-cols-3 px-4 py-3 text-[14px] border-b border-[var(--border)] ${isATM ? 'bg-[var(--bg-card-hover)] glass' : ''}`}
               >
                 <span className="text-[var(--accent-buy)] font-medium">
                   {row.callLtp != null ? Number(row.callLtp).toFixed(2) : '—'}

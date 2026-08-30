@@ -71,7 +71,7 @@ export default function StrategyForm({
   }
 
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--accent-brand)] rounded-2xl p-4 space-y-3">
+    <div className="bg-[var(--bg-card)] glass border border-[var(--accent-brand)] rounded-2xl p-4 space-y-3">
       <p className="text-[14px] font-semibold">{existing ? 'Edit strategy' : 'New strategy'}</p>
 
       <div>
@@ -80,7 +80,7 @@ export default function StrategyForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. My ORB Strategy"
-          className="w-full bg-[var(--bg-card-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] mt-1"
+          className="w-full bg-[var(--bg-card-hover)] glass border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] mt-1"
         />
       </div>
 
@@ -89,7 +89,7 @@ export default function StrategyForm({
         <select
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
-          className="w-full bg-[var(--bg-card-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] mt-1"
+          className="w-full bg-[var(--bg-card-hover)] glass border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] mt-1"
         >
           <option value="NIFTY50">NIFTY50</option>
           <option value="BANKNIFTY">BANKNIFTY</option>
@@ -101,18 +101,18 @@ export default function StrategyForm({
         <label className="text-[11px] text-[var(--text-secondary)]">Legs</label>
         <div className="space-y-1.5 mt-1">
           {legs.map((leg, i) => (
-            <div key={i} className="flex items-center justify-between bg-[var(--bg-card-hover)] rounded-lg px-3 py-1.5 text-[12px]">
+            <div key={i} className="flex items-center justify-between bg-[var(--bg-card-hover)] glass rounded-lg px-3 py-1.5 text-[12px]">
               <span>{leg.action} {leg.type} @ {leg.strike}</span>
               <button onClick={() => removeLeg(i)} className="text-[var(--accent-sell)] text-[11px]">Remove</button>
             </div>
           ))}
         </div>
         <div className="flex gap-1.5 mt-2">
-          <select value={legAction} onChange={(e) => setLegAction(e.target.value as any)} className="bg-[var(--bg-card-hover)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-[12px]">
+          <select value={legAction} onChange={(e) => setLegAction(e.target.value as any)} className="bg-[var(--bg-card-hover)] glass border border-[var(--border)] rounded-lg px-2 py-1.5 text-[12px]">
             <option value="BUY">BUY</option>
             <option value="SELL">SELL</option>
           </select>
-          <select value={legType} onChange={(e) => setLegType(e.target.value as any)} className="bg-[var(--bg-card-hover)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-[12px]">
+          <select value={legType} onChange={(e) => setLegType(e.target.value as any)} className="bg-[var(--bg-card-hover)] glass border border-[var(--border)] rounded-lg px-2 py-1.5 text-[12px]">
             <option value="CE">CE</option>
             <option value="PE">PE</option>
           </select>
@@ -120,7 +120,7 @@ export default function StrategyForm({
             value={legStrike}
             onChange={(e) => setLegStrike(e.target.value)}
             placeholder="ATM / OTM+1"
-            className="flex-1 bg-[var(--bg-card-hover)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-[12px]"
+            className="flex-1 bg-[var(--bg-card-hover)] glass border border-[var(--border)] rounded-lg px-2 py-1.5 text-[12px]"
           />
           <button onClick={addLeg} className="bg-[var(--accent-brand)] text-white px-3 py-1.5 rounded-lg text-[12px] font-medium">
             + Add
@@ -135,7 +135,7 @@ export default function StrategyForm({
             type="number"
             value={stopLossPct}
             onChange={(e) => setStopLossPct(e.target.value)}
-            className="w-full bg-[var(--bg-card-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] mt-1"
+            className="w-full bg-[var(--bg-card-hover)] glass border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] mt-1"
           />
         </div>
         <div>
@@ -144,7 +144,7 @@ export default function StrategyForm({
             type="number"
             value={targetPct}
             onChange={(e) => setTargetPct(e.target.value)}
-            className="w-full bg-[var(--bg-card-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] mt-1"
+            className="w-full bg-[var(--bg-card-hover)] glass border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] mt-1"
           />
         </div>
       </div>
@@ -152,7 +152,7 @@ export default function StrategyForm({
       {error && <p className="text-[12px] text-[var(--accent-sell)]">{error}</p>}
 
       <div className="grid grid-cols-2 gap-2.5 pt-1">
-        <button onClick={onCancel} className="bg-[var(--bg-card-hover)] border border-[var(--border)] text-[13px] font-semibold py-2.5 rounded-xl">
+        <button onClick={onCancel} className="bg-[var(--bg-card-hover)] glass border border-[var(--border)] text-[13px] font-semibold py-2.5 rounded-xl">
           Cancel
         </button>
         <button

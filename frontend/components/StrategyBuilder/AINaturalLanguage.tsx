@@ -10,7 +10,7 @@ export default function AINaturalLanguage() {
   }
 
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
+    <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl p-4 space-y-3">
       <p className="text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Describe your strategy</p>
       <textarea
         className="w-full bg-black/30 rounded-xl p-3 text-[13px] border border-[var(--border)] placeholder:text-[var(--text-secondary)]"

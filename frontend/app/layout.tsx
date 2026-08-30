@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="flex-1 pb-20">{children}</main>
 
           {/* Bottom tab bar — mobile app style like Dhan */}
-          <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[var(--bg-card)] border-t border-[var(--border)] flex items-stretch z-20">
+          <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[var(--bg-card)] glass border-t border-[var(--border)] flex items-stretch z-20">
             {navItems.map((item) => (
               <a
                 key={item.href}

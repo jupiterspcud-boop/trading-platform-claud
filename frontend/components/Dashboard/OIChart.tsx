@@ -21,7 +21,7 @@ export default function OIChart({ symbol = 'NIFTY50', label = 'Nifty 50' }: { sy
   const isUp = chartData && chartData.length > 1 && chartData[chartData.length - 1].close >= chartData[0].close;
 
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
+    <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl p-4">
       <p className="text-[13px] font-semibold mb-1">{label} — trend</p>
       {error && <p className="text-[12px] text-[var(--accent-sell)]">Couldn't load chart: {error}</p>}
       {!chartData && !error && <p className="text-[12px] text-[var(--text-secondary)]">Loading chart…</p>}

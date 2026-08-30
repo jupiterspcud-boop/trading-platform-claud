@@ -4,9 +4,9 @@
 
 :root {
   --bg-app: #060708;
-  --bg-card: #121315;
-  --bg-card-hover: #1C1E21;
-  --border: #26282B;
+  --bg-card: rgba(255, 255, 255, 0.05);
+  --bg-card-hover: rgba(255, 255, 255, 0.09);
+  --border: rgba(255, 255, 255, 0.10);
   --text-primary: #F5F5F5;
   --text-secondary: #8A8D91;
   --accent-buy: #00C896;
@@ -20,10 +20,17 @@
 }
 
 body {
-  background: var(--bg-app);
+  background: radial-gradient(circle at 20% 0%, #101820 0%, #060708 45%),
+              radial-gradient(circle at 90% 30%, #0d1a16 0%, #060708 50%);
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+.glass {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 ::-webkit-scrollbar {
