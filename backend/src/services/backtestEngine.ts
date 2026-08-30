@@ -71,18 +71,15 @@ export function runBacktest(legs: Leg[], stopLossPct: number, targetPct: number,
   let maxDrawdown = 0;
   const equityCurve: { date: string; cumPnlPct: number }[] = [];
 
-  // FIX: Daily NIFTY/BANKNIFTY/SENSEX moves are typically 0.3-2%, so using a
-  // fixed 20-30% stopLossPct as a PRICE-RANGE threshold (as before) meant
-  // that threshold was basically never crossed — short-vol strategies "won"
-  // every single day, which isn't a real signal, just a broken comparison.
-  // Fix: derive the range threshold from this instrument's OWN historical
-  // volatility distribution (70th percentile of daily range) instead of the
-  // strategy's stopLossPct — that field still controls how much is won/lost
-  // per trade, just not whether a day counts as "calm" or "volatile".
-  const allRanges = candles
-    .map((c) => (Number(c.open) > 0 ? ((Number(c.high) - Number(c.low)) / Number(c.open)) * 100 : 0))
-    .sort((a, b) => a - b);
-  const volatilityThreshold = percentile(allRanges, 0.7); // top 30% of days = "volatile"
+  // FIX: A per-instrument percentile threshold (e.g. "70th percentile of
+  // THIS instrument's own range distribution") is self-normalizing — by
+  // definition it always produces roughly the same ~70/30 win rate for
+  // ANY instrument, which is why NIFTY/BANKNIFTY/SENSEX all looked
+  // identical before. Using one FIXED absolute threshold across all
+  // instruments instead means genuinely more volatile instruments (e.g.
+  // BANKNIFTY typically moves more than NIFTY/SENSEX) now correctly show
+  // a different, lower win rate for short-vol strategies, and vice versa.
+  const VOLATILITY_THRESHOLD_PCT = 1.0; // typical 1-day ATM straddle breakeven zone
 
   for (const c of candles) {
     const open = Number(c.open);
@@ -96,13 +93,12 @@ export function runBacktest(legs: Leg[], stopLossPct: number, targetPct: number,
     let pnlPct: number;
 
     if (strategyType === 'LONG_VOL') {
-      // Wins on a big move either direction (top 30% volatility days).
-      if (dayRangePct >= volatilityThreshold) { outcome = 'WIN'; pnlPct = targetPct; }
+      // Wins on a big move either direction.
+      if (dayRangePct >= VOLATILITY_THRESHOLD_PCT) { outcome = 'WIN'; pnlPct = targetPct; }
       else { outcome = 'LOSS'; pnlPct = -stopLossPct; }
     } else if (strategyType === 'SHORT_VOL') {
-      // Wins when price stays contained (bottom 70% of days); loses on the
-      // volatile tail days when a big move blows through the short strikes.
-      if (dayRangePct <= volatilityThreshold) { outcome = 'WIN'; pnlPct = targetPct; }
+      // Wins when price stays contained within the threshold.
+      if (dayRangePct <= VOLATILITY_THRESHOLD_PCT) { outcome = 'WIN'; pnlPct = targetPct; }
       else { outcome = 'LOSS'; pnlPct = -stopLossPct; }
     } else {
       // Directional: wins if the move in the expected direction clears target
