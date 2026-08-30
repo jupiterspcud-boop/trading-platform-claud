@@ -51,8 +51,10 @@ router.post('/run', async (req, res) => {
     res.json({
       success: true,
       strategyName: strategy.name,
+      symbol: strategy.symbol,
       dataPointsUsed: candles.length,
-      note: 'Price-action-based approximation — see docs for methodology. More accurate as daily data accumulates.',
+      dateRange: `${candles[0].candle_time.slice(0, 10)} to ${candles[candles.length - 1].candle_time.slice(0, 10)}`,
+      note: 'Price-action-based approximation. Short-vol/long-vol strategies now use this instrument\'s own volatility distribution (70th percentile of daily range) to decide win/loss, not a fixed threshold.',
       ...result,
     });
   } catch (err: any) {

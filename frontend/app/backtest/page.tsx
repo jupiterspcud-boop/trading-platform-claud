@@ -87,8 +87,12 @@ function BacktestContent() {
 
       {result && (
         <div className="space-y-3">
+          <div className="bg-[var(--bg-card-hover)] border border-[var(--accent-brand)] rounded-xl p-3">
+            <p className="text-[13px] font-semibold">{result.symbol} — {result.strategyType}</p>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{result.dateRange} · {result.dataPointsUsed} trading days</p>
+          </div>
           <p className="text-[11px] text-[var(--text-secondary)] bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3">
-            {result.note} · {result.dataPointsUsed} days of data used · Classified as {result.strategyType}
+            {result.note}
           </p>
 
           <div className="grid grid-cols-3 gap-2.5">

@@ -57,6 +57,12 @@ function classifyStrategy(legs: Leg[]): 'DIRECTIONAL_BULLISH' | 'DIRECTIONAL_BEA
   return 'LONG_VOL'; // fallback for balanced/ambiguous leg sets
 }
 
+function percentile(sortedArr: number[], p: number): number {
+  if (sortedArr.length === 0) return 0;
+  const idx = Math.floor(p * (sortedArr.length - 1));
+  return sortedArr[idx];
+}
+
 export function runBacktest(legs: Leg[], stopLossPct: number, targetPct: number, candles: Candle[]): BacktestResult {
   const strategyType = classifyStrategy(legs);
   const trades: BacktestTrade[] = [];
@@ -64,6 +70,19 @@ export function runBacktest(legs: Leg[], stopLossPct: number, targetPct: number,
   let peak = 0;
   let maxDrawdown = 0;
   const equityCurve: { date: string; cumPnlPct: number }[] = [];
+
+  // FIX: Daily NIFTY/BANKNIFTY/SENSEX moves are typically 0.3-2%, so using a
+  // fixed 20-30% stopLossPct as a PRICE-RANGE threshold (as before) meant
+  // that threshold was basically never crossed — short-vol strategies "won"
+  // every single day, which isn't a real signal, just a broken comparison.
+  // Fix: derive the range threshold from this instrument's OWN historical
+  // volatility distribution (70th percentile of daily range) instead of the
+  // strategy's stopLossPct — that field still controls how much is won/lost
+  // per trade, just not whether a day counts as "calm" or "volatile".
+  const allRanges = candles
+    .map((c) => (Number(c.open) > 0 ? ((Number(c.high) - Number(c.low)) / Number(c.open)) * 100 : 0))
+    .sort((a, b) => a - b);
+  const volatilityThreshold = percentile(allRanges, 0.7); // top 30% of days = "volatile"
 
   for (const c of candles) {
     const open = Number(c.open);
@@ -77,12 +96,13 @@ export function runBacktest(legs: Leg[], stopLossPct: number, targetPct: number,
     let pnlPct: number;
 
     if (strategyType === 'LONG_VOL') {
-      // Wins on a big move either direction; small moves = both legs decay.
-      if (dayRangePct >= targetPct) { outcome = 'WIN'; pnlPct = targetPct; }
+      // Wins on a big move either direction (top 30% volatility days).
+      if (dayRangePct >= volatilityThreshold) { outcome = 'WIN'; pnlPct = targetPct; }
       else { outcome = 'LOSS'; pnlPct = -stopLossPct; }
     } else if (strategyType === 'SHORT_VOL') {
-      // Wins when price stays contained; a big move blows through the short strikes.
-      if (dayRangePct <= stopLossPct) { outcome = 'WIN'; pnlPct = targetPct; }
+      // Wins when price stays contained (bottom 70% of days); loses on the
+      // volatile tail days when a big move blows through the short strikes.
+      if (dayRangePct <= volatilityThreshold) { outcome = 'WIN'; pnlPct = targetPct; }
       else { outcome = 'LOSS'; pnlPct = -stopLossPct; }
     } else {
       // Directional: wins if the move in the expected direction clears target
