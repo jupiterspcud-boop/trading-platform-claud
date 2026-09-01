@@ -467,3 +467,62 @@ router.get('/backfill-range', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// GET /api/analysis/greeks?symbol=NIFTY50 — IV + Greeks for the latest
+// stored option chain, using Black-Scholes (real math, not a placeholder).
+router.get('/greeks', async (req, res) => {
+  try {
+    const { impliedVolatility, calculateGreeks, daysToExpiryYears } = await import('../services/greeksCalculator');
+    const symbol = (req.query.symbol as string) || 'NIFTY50';
+
+    const { data: instrument } = await supabase.from('instruments').select('id').eq('symbol', symbol).single();
+    if (!instrument) return res.status(404).json({ error: 'Instrument not found' });
+
+    const { data: latestExpiryRow } = await supabase
+      .from('options_ohlc').select('expiry_date').eq('instrument_id', instrument.id)
+      .order('expiry_date', { ascending: false }).limit(1).single();
+    if (!latestExpiryRow) return res.json({ symbol, chain: [] });
+
+    const { data: rows } = await supabase
+      .from('options_ohlc')
+      .select('strike, option_type, close, candle_time')
+      .eq('instrument_id', instrument.id)
+      .eq('expiry_date', latestExpiryRow.expiry_date)
+      .order('candle_time', { ascending: false });
+
+    const seen = new Set<string>();
+    const latest = (rows || []).filter((r: any) => {
+      const key = `${r.strike}-${r.option_type}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const { data: spotRow } = await supabase
+      .from('spot_ohlc').select('close').eq('instrument_id', instrument.id)
+      .order('candle_time', { ascending: false }).limit(1).single();
+    const spot = spotRow ? Number(spotRow.close) : null;
+    if (!spot) return res.json({ symbol, chain: [], note: 'No spot price available yet' });
+
+    const T = daysToExpiryYears(latestExpiryRow.expiry_date);
+
+    const chain = latest.map((r: any) => {
+      const strike = Number(r.strike);
+      const price = Number(r.close);
+      const type = r.option_type as 'CE' | 'PE';
+      const iv = impliedVolatility(price, spot, strike, T, type);
+      const greeks = iv ? calculateGreeks(spot, strike, T, iv, type) : null;
+      return {
+        strike,
+        type,
+        price,
+        ivPct: iv ? Number((iv * 100).toFixed(2)) : null,
+        ...greeks,
+      };
+    });
+
+    res.json({ symbol, spot, expiry: latestExpiryRow.expiry_date, daysToExpiry: Number((T * 365).toFixed(1)), chain });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});

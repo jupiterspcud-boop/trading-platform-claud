@@ -58,6 +58,31 @@ export async function fetchSpotHistory(symbol: string): Promise<SpotHistoryPoint
   return data.points || [];
 }
 
+export type GreeksRow = {
+  strike: number;
+  type: 'CE' | 'PE';
+  price: number;
+  ivPct: number | null;
+  delta?: number;
+  gamma?: number;
+  theta?: number;
+  vega?: number;
+};
+
+export type GreeksResponse = {
+  symbol: string;
+  spot: number;
+  expiry: string;
+  daysToExpiry: number;
+  chain: GreeksRow[];
+};
+
+export async function fetchGreeks(symbol: string): Promise<GreeksResponse> {
+  const res = await fetch(`${BACKEND_URL}/api/analysis/greeks?symbol=${symbol}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch Greeks');
+  return res.json();
+}
+
 export type Strategy = {
   id: string;
   name: string;
