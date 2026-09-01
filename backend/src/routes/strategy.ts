@@ -1,17 +1,29 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabaseClient';
+import { parseStrategyText } from '../services/strategyParser';
 
 const router = Router();
 
 // POST /api/strategy/generate-from-text  { prompt: string }
+// Keyword-based parser (not full AI) — recognizes a fixed set of known
+// patterns (BUY/SELL CE/PE, Straddle/Strangle, breakout triggers,
+// target/stop-loss percentages). Says explicitly what it did NOT understand.
 router.post('/generate-from-text', async (req, res) => {
   const { prompt } = req.body;
-  // TODO: REAL INTEGRATION — wire to an AI provider with a strict JSON
-  // schema. Never trust free-form LLM output directly as executable.
+  if (!prompt) return res.status(400).json({ error: 'prompt is required' });
+
+  const parsed = parseStrategyText(prompt);
   res.json({
-    note: 'STUB: wire to an AI provider to parse this into structured rules',
     input: prompt,
-    strategy: null,
+    matched: parsed.matched,
+    legs: parsed.legs,
+    triggerCondition: parsed.triggerCondition,
+    stopLossPct: parsed.stopLossPct,
+    targetPct: parsed.targetPct,
+    matchedPhrases: parsed.matchedPhrases,
+    note: parsed.matched
+      ? 'Review the parsed strategy below, then save it if it looks right.'
+      : "Couldn't recognize any known pattern (BUY/SELL CE/PE, Straddle, Strangle, breakout above/below previous day, target/stop-loss %). Try rephrasing or build it manually below.",
   });
 });
 

@@ -11,19 +11,27 @@ type Leg = { action: 'BUY' | 'SELL'; type: 'CE' | 'PE'; strike: string };
 
 export default function StrategyForm({
   existing,
+  prefill,
   onSaved,
   onCancel,
 }: {
   existing?: Strategy;
+  prefill?: any;
   onSaved: () => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(existing?.name || '');
   const [symbol, setSymbol] = useState(existing?.symbol || 'NIFTY50');
-  const [legs, setLegs] = useState<Leg[]>(existing?.legs || []);
-  const [stopLossPct, setStopLossPct] = useState(existing?.stop_loss_pct?.toString() || '20');
-  const [targetPct, setTargetPct] = useState(existing?.target_pct?.toString() || '30');
-  const [triggerCondition, setTriggerCondition] = useState((existing as any)?.trigger_condition || 'NONE');
+  const [legs, setLegs] = useState<Leg[]>(existing?.legs || prefill?.legs || []);
+  const [stopLossPct, setStopLossPct] = useState(
+    existing?.stop_loss_pct?.toString() || prefill?.stopLossPct?.toString() || '20'
+  );
+  const [targetPct, setTargetPct] = useState(
+    existing?.target_pct?.toString() || prefill?.targetPct?.toString() || '30'
+  );
+  const [triggerCondition, setTriggerCondition] = useState(
+    (existing as any)?.trigger_condition || prefill?.triggerCondition || 'NONE'
+  );
   const [legAction, setLegAction] = useState<'BUY' | 'SELL'>('BUY');
   const [legType, setLegType] = useState<'CE' | 'PE'>('CE');
   const [legStrike, setLegStrike] = useState('ATM');

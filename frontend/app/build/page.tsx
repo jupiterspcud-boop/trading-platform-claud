@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { fetchStrategies, Strategy } from '@/lib/api';
 import StrategyForm from '@/components/StrategyBuilder/StrategyForm';
+import AINaturalLanguage from '@/components/StrategyBuilder/AINaturalLanguage';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://tradepulse-backend-l79z.onrender.com';
 
@@ -18,6 +19,7 @@ export default function BuildPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Strategy | null>(null);
+  const [prefill, setPrefill] = useState<any>(null);
 
   function reload() {
     fetchStrategies().then(setStrategies).catch((err) => setError(err.message));
@@ -50,11 +52,22 @@ export default function BuildPage() {
         )}
       </div>
 
+      {!showCreate && !editing && (
+        <AINaturalLanguage
+          onParsed={(parsed) => {
+            setPrefill(parsed);
+            setShowCreate(true);
+          }}
+        />
+      )}
+
       {showCreate && (
         <StrategyForm
-          onCancel={() => setShowCreate(false)}
+          prefill={prefill}
+          onCancel={() => { setShowCreate(false); setPrefill(null); }}
           onSaved={() => {
             setShowCreate(false);
+            setPrefill(null);
             reload();
           }}
         />

@@ -1,28 +1,78 @@
 'use client';
+// Keyword-based strategy text parser UI. Parses plain-English strategy
+// descriptions into structured legs/trigger/target using a fixed set of
+// known patterns (not full AI) — shows exactly what it recognized before
+// saving, and says clearly when it didn't understand something.
+
 import { useState } from 'react';
 
-export default function AINaturalLanguage() {
-  const [prompt, setPrompt] = useState('');
-  const [result, setResult] = useState<string | null>(null);
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://tradepulse-backend-l79z.onrender.com';
 
-  function handleGenerate() {
-    setResult(`Preview only. Once connected, this will parse:\n"${prompt}"\ninto a structured strategy for you to review before saving.`);
+export default function AINaturalLanguage({ onParsed }: { onParsed: (parsed: any) => void }) {
+  const [prompt, setPrompt] = useState('');
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleGenerate() {
+    if (!prompt.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/strategy/generate-from-text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+      setResult(data);
+    } catch (err: any) {
+      setResult({ matched: false, note: 'Request failed: ' + err.message });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="bg-[var(--bg-card)] glass border border-[var(--border)] rounded-2xl p-4 space-y-3">
-      <p className="text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Describe your strategy</p>
+      <h2 className="text-[13px] font-semibold">Describe your strategy</h2>
       <textarea
-        className="w-full bg-black/30 rounded-xl p-3 text-[13px] border border-[var(--border)] placeholder:text-[var(--text-secondary)]"
+        className="w-full bg-[var(--bg-card-hover)] glass rounded-lg p-3 text-[13px] border border-[var(--border)]"
         rows={3}
-        placeholder='e.g. "Buy Nifty CE when RSI crosses above 30, exit at 3% target or 1% stop-loss"'
+        placeholder='e.g. "Buy Nifty CE when price breaks above previous day high, target 30%, stop-loss 15%"'
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
       />
-      <button onClick={handleGenerate} className="w-full bg-[var(--accent-brand)] text-white text-[13px] font-semibold py-3 rounded-xl">
-        Generate Strategy
+      <button
+        onClick={handleGenerate}
+        disabled={loading}
+        className="px-4 py-2.5 rounded-xl bg-[var(--accent-brand)] text-white text-[13px] font-semibold disabled:opacity-50"
+      >
+        {loading ? 'Parsing…' : 'Parse strategy'}
       </button>
-      {result && <pre className="text-[11px] text-[var(--text-secondary)] whitespace-pre-wrap bg-black/20 rounded-lg p-3">{result}</pre>}
+
+      {result && (
+        <div className="bg-[var(--bg-card-hover)] glass border border-[var(--border)] rounded-xl p-3 space-y-2">
+          <p className="text-[12px] text-[var(--text-secondary)]">{result.note}</p>
+          {result.matched && (
+            <>
+              {result.matchedPhrases?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {result.matchedPhrases.map((p: string, i: number) => (
+                    <span key={i} className="text-[10px] bg-[var(--accent-brand)] text-white px-2 py-0.5 rounded-full">
+                      {p}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => onParsed(result)}
+                className="w-full mt-1 text-[12px] font-semibold py-2 rounded-lg bg-[var(--accent-buy)] text-black"
+              >
+                Use this — fill the form below
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
