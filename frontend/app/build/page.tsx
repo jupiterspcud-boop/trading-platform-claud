@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { fetchStrategies, Strategy } from '@/lib/api';
 import StrategyForm from '@/components/StrategyBuilder/StrategyForm';
 import AINaturalLanguage from '@/components/StrategyBuilder/AINaturalLanguage';
+import { authFetch } from '@/lib/auth';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://tradepulse-backend-l79z.onrender.com';
 
@@ -31,7 +32,7 @@ export default function BuildPage() {
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this strategy?')) return;
-    await fetch(`${BACKEND_URL}/api/strategy/${id}`, { method: 'DELETE' });
+    await authFetch(`/api/strategy/${id}`, { method: 'DELETE' });
     reload();
   }
 

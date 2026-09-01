@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { fetchStrategies, Strategy } from '@/lib/api';
+import { authFetch } from '@/lib/auth';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://tradepulse-backend-l79z.onrender.com';
 
@@ -22,7 +23,7 @@ export default function ExecutePage() {
   useEffect(() => { reload(); }, []);
 
   async function loadPaperTrades(strategyId: string) {
-    const res = await fetch(`${BACKEND_URL}/api/execute/paper-trades?strategyId=${strategyId}`);
+    const res = await authFetch(`/api/execute/paper-trades?strategyId=${strategyId}`);
     const data = await res.json();
     setPaperData((prev) => ({ ...prev, [strategyId]: data }));
   }
@@ -34,9 +35,8 @@ export default function ExecutePage() {
   async function handleRunToday(strategyId: string) {
     setRunning(strategyId);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/execute/paper-trade`, {
+      const res = await authFetch(`/api/execute/paper-trade`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ strategyId }),
       });
       const data = await res.json();

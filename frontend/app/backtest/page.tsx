@@ -7,6 +7,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Strategy } from '@/lib/api';
+import { authFetch } from '@/lib/auth';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://tradepulse-backend-l79z.onrender.com';
 
@@ -27,7 +28,7 @@ function BacktestContent() {
 
   useEffect(() => {
     if (!strategyId) return;
-    fetch(`${BACKEND_URL}/api/strategy/${strategyId}`)
+    authFetch(`/api/strategy/${strategyId}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.success) {
@@ -46,9 +47,8 @@ function BacktestContent() {
     setError(null);
     setResult(null);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/backtest/run`, {
+      const res = await authFetch(`/api/backtest/run`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ strategyId, symbol }),
       });
       const data = await res.json();

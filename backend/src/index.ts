@@ -8,6 +8,7 @@ import backtestRoutes from './routes/backtest';
 import executeRoutes from './routes/execute';
 import journalRoutes from './routes/journal';
 import marketplaceRoutes from './routes/marketplace';
+import authRoutes from './routes/auth';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use('/api/backtest', backtestRoutes);
 app.use('/api/execute', executeRoutes);
 app.use('/api/journal', journalRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/auth', authRoutes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 

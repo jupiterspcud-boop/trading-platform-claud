@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { Strategy } from '@/lib/api';
+import { authFetch } from '@/lib/auth';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://tradepulse-backend-l79z.onrender.com';
 
@@ -63,11 +64,10 @@ export default function StrategyForm({
         source: 'manual',
         triggerCondition,
       };
-      const url = existing ? `${BACKEND_URL}/api/strategy/${existing.id}` : `${BACKEND_URL}/api/strategy/create`;
+      const url = existing ? `/api/strategy/${existing.id}` : `/api/strategy/create`;
       const method = existing ? 'PUT' : 'POST';
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       const data = await res.json();

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabaseClient';
+import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
@@ -9,7 +10,7 @@ const VIRTUAL_CAPITAL = 100000; // ₹1,00,000 notional per strategy, for P&L% -
 // Evaluates the strategy's trigger condition against the MOST RECENT stored
 // candle (today, once daily sync has run) and — if the trigger fires —
 // logs a hypothetical trade with virtual money. No real orders are placed.
-router.post('/paper-trade', async (req, res) => {
+router.post('/paper-trade', requireAuth, async (req, res) => {
   try {
     const { strategyId } = req.body;
     if (!strategyId) return res.status(400).json({ success: false, error: 'strategyId is required' });
@@ -114,7 +115,7 @@ router.post('/paper-trade', async (req, res) => {
 });
 
 // GET /api/execute/paper-trades?strategyId=X — trade history + cumulative P&L
-router.get('/paper-trades', async (req, res) => {
+router.get('/paper-trades', requireAuth, async (req, res) => {
   try {
     const strategyId = req.query.strategyId as string;
     if (!strategyId) return res.status(400).json({ error: 'strategyId is required' });

@@ -96,7 +96,8 @@ export type Strategy = {
 };
 
 export async function fetchStrategies(): Promise<Strategy[]> {
-  const res = await fetch(`${BACKEND_URL}/api/strategy/list`, { cache: 'no-store' });
+  const { authFetch } = await import('./auth');
+  const res = await authFetch('/api/strategy/list');
   if (!res.ok) throw new Error('Failed to fetch strategies');
   const data = await res.json();
   return data.strategies || [];

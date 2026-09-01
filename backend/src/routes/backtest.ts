@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabaseClient';
 import { runBacktest } from '../services/backtestEngine';
+import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
 // POST /api/backtest/run  { strategyId }
 // Fetches the strategy and all available historical spot data for its
 // symbol, runs the price-action-based backtest engine, saves the result.
-router.post('/run', async (req, res) => {
+router.post('/run', requireAuth, async (req, res) => {
   try {
     const { strategyId, symbol: symbolOverride } = req.body;
     if (!strategyId) return res.status(400).json({ success: false, error: 'strategyId is required' });
