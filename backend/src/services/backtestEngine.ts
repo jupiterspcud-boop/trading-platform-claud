@@ -63,7 +63,26 @@ function percentile(sortedArr: number[], p: number): number {
   return sortedArr[idx];
 }
 
-export function runBacktest(legs: Leg[], stopLossPct: number, targetPct: number, candles: Candle[]): BacktestResult {
+// Trigger conditions — reuses the "Previous Day" reference level from the
+// Technical Levels engine. Only days where the trigger condition actually
+// fires are counted as trades; other days are skipped entirely.
+export type TriggerCondition = 'NONE' | 'PREV_DAY_BREAKOUT_HIGH' | 'PREV_DAY_BREAKOUT_LOW';
+
+function triggerFires(trigger: TriggerCondition, today: Candle, prevDay: Candle | null): boolean {
+  if (trigger === 'NONE') return true;
+  if (!prevDay) return false; // no previous day to compare against (e.g. first day in dataset)
+  if (trigger === 'PREV_DAY_BREAKOUT_HIGH') return Number(today.high) > Number(prevDay.high);
+  if (trigger === 'PREV_DAY_BREAKOUT_LOW') return Number(today.low) < Number(prevDay.low);
+  return true;
+}
+
+export function runBacktest(
+  legs: Leg[],
+  stopLossPct: number,
+  targetPct: number,
+  candles: Candle[],
+  trigger: TriggerCondition = 'NONE'
+): BacktestResult {
   const strategyType = classifyStrategy(legs);
   const trades: BacktestTrade[] = [];
   let cumPnl = 0;
@@ -81,7 +100,12 @@ export function runBacktest(legs: Leg[], stopLossPct: number, targetPct: number,
   // a different, lower win rate for short-vol strategies, and vice versa.
   const VOLATILITY_THRESHOLD_PCT = 1.0; // typical 1-day ATM straddle breakeven zone
 
-  for (const c of candles) {
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i];
+    const prevDay = i > 0 ? candles[i - 1] : null;
+
+    if (!triggerFires(trigger, c, prevDay)) continue; // skip days where the trigger didn't fire
+
     const open = Number(c.open);
     const high = Number(c.high);
     const low = Number(c.low);

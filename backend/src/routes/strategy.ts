@@ -19,7 +19,7 @@ router.post('/generate-from-text', async (req, res) => {
 // Body: { name, symbol, legs, stopLossPct, targetPct, source, description }
 router.post('/create', async (req, res) => {
   try {
-    const { name, symbol, legs, stopLossPct, targetPct, source, description } = req.body;
+    const { name, symbol, legs, stopLossPct, targetPct, source, description, triggerCondition } = req.body;
     if (!name || !symbol) {
       return res.status(400).json({ error: 'name and symbol are required' });
     }
@@ -33,6 +33,7 @@ router.post('/create', async (req, res) => {
         stop_loss_pct: stopLossPct ?? null,
         target_pct: targetPct ?? null,
         source: source || 'manual',
+        trigger_condition: triggerCondition || 'NONE',
         status: 'draft',
       })
       .select()
@@ -75,7 +76,7 @@ export default router;
 // PUT /api/strategy/:id — update an existing strategy
 router.put('/:id', async (req, res) => {
   try {
-    const { name, symbol, legs, stopLossPct, targetPct, status } = req.body;
+    const { name, symbol, legs, stopLossPct, targetPct, status, triggerCondition } = req.body;
     const updates: any = {};
     if (name !== undefined) updates.name = name;
     if (symbol !== undefined) updates.symbol = symbol;
@@ -83,6 +84,7 @@ router.put('/:id', async (req, res) => {
     if (stopLossPct !== undefined) updates.stop_loss_pct = stopLossPct;
     if (targetPct !== undefined) updates.target_pct = targetPct;
     if (status !== undefined) updates.status = status;
+    if (triggerCondition !== undefined) updates.trigger_condition = triggerCondition;
 
     const { data, error } = await supabase.from('strategies').update(updates).eq('id', req.params.id).select().single();
     if (error) throw new Error(error.message);

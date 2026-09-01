@@ -23,6 +23,7 @@ export default function StrategyForm({
   const [legs, setLegs] = useState<Leg[]>(existing?.legs || []);
   const [stopLossPct, setStopLossPct] = useState(existing?.stop_loss_pct?.toString() || '20');
   const [targetPct, setTargetPct] = useState(existing?.target_pct?.toString() || '30');
+  const [triggerCondition, setTriggerCondition] = useState((existing as any)?.trigger_condition || 'NONE');
   const [legAction, setLegAction] = useState<'BUY' | 'SELL'>('BUY');
   const [legType, setLegType] = useState<'CE' | 'PE'>('CE');
   const [legStrike, setLegStrike] = useState('ATM');
@@ -52,6 +53,7 @@ export default function StrategyForm({
         stopLossPct: Number(stopLossPct),
         targetPct: Number(targetPct),
         source: 'manual',
+        triggerCondition,
       };
       const url = existing ? `${BACKEND_URL}/api/strategy/${existing.id}` : `${BACKEND_URL}/api/strategy/create`;
       const method = existing ? 'PUT' : 'POST';
@@ -94,6 +96,19 @@ export default function StrategyForm({
           <option value="NIFTY50">NIFTY50</option>
           <option value="BANKNIFTY">BANKNIFTY</option>
           <option value="SENSEX">SENSEX</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-[11px] text-[var(--text-secondary)]">Entry trigger</label>
+        <select
+          value={triggerCondition}
+          onChange={(e) => setTriggerCondition(e.target.value)}
+          className="w-full bg-[var(--bg-card-hover)] glass border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] mt-1"
+        >
+          <option value="NONE">None — trade every day</option>
+          <option value="PREV_DAY_BREAKOUT_HIGH">Breakout above previous day's high</option>
+          <option value="PREV_DAY_BREAKOUT_LOW">Breakdown below previous day's low</option>
         </select>
       </div>
 

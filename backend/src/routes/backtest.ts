@@ -37,7 +37,8 @@ router.post('/run', async (req, res) => {
       strategy.legs || [],
       Number(strategy.stop_loss_pct) || 20,
       Number(strategy.target_pct) || 20,
-      candles
+      candles,
+      strategy.trigger_condition || 'NONE'
     );
 
     // Save a summary row into backtest_results
@@ -54,9 +55,10 @@ router.post('/run', async (req, res) => {
       success: true,
       strategyName: strategy.name,
       symbol: symbolToUse,
+      triggerCondition: strategy.trigger_condition || 'NONE',
       dataPointsUsed: candles.length,
       dateRange: `${candles[0].candle_time.slice(0, 10)} to ${candles[candles.length - 1].candle_time.slice(0, 10)}`,
-      note: 'Price-action-based approximation. Short-vol/long-vol strategies now use this instrument\'s own volatility distribution (70th percentile of daily range) to decide win/loss, not a fixed threshold.',
+      note: 'Price-action-based approximation. Short-vol/long-vol strategies use a fixed 1% daily-range threshold. Entry trigger (if set) filters which days count as trades.',
       ...result,
     });
   } catch (err: any) {

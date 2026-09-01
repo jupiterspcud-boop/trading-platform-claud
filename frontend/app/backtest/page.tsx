@@ -126,6 +126,9 @@ function BacktestContent() {
           <div className="bg-[var(--bg-card-hover)] glass border border-[var(--accent-brand)] rounded-xl p-3">
             <p className="text-[13px] font-semibold">{result.symbol} — {result.strategyType}</p>
             <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{result.dateRange} · {result.dataPointsUsed} trading days</p>
+            {result.triggerCondition && result.triggerCondition !== 'NONE' && (
+              <p className="text-[11px] text-[var(--accent-brand)] mt-0.5">Trigger: {result.triggerCondition.replace(/_/g, ' ')}</p>
+            )}
           </div>
           <p className="text-[11px] text-[var(--text-secondary)] bg-[var(--bg-card)] glass border border-[var(--border)] rounded-xl p-3">
             {result.note}
