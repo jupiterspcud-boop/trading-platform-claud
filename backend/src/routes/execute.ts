@@ -120,6 +120,35 @@ router.post('/paper-trade', requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+// GET /api/execute/run-all-paper?secret=... — same as above, but GET-based
+// so it can be tested directly from a browser URL bar. cron-job.org can use
+// either this GET version (with ?secret=) or the POST version with a header.
+router.get('/run-all-paper', async (req, res) => {
+  try {
+    const providedSecret = req.query.secret as string;
+    if (!CRON_SECRET || providedSecret !== CRON_SECRET) {
+      return res.status(401).json({ success: false, error: 'Invalid or missing secret' });
+    }
+
+    const { data: strategies, error } = await supabase
+      .from('strategies').select('id, name').eq('status', 'paper');
+    if (error) throw new Error(error.message);
+
+    const results: any[] = [];
+    for (const s of strategies || []) {
+      try {
+        const r = await evaluatePaperTrade(s.id);
+        results.push({ strategyId: s.id, name: s.name, ...r });
+      } catch (err: any) {
+        results.push({ strategyId: s.id, name: s.name, success: false, error: err.message });
+      }
+    }
+    res.json({ success: true, evaluated: results.length, results });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // POST /api/execute/run-all-paper — for the daily cron job. Protected by a
 // shared secret header (not user login) since cron-job.org can't hold a
 // per-user session. Runs evaluation for every strategy currently marked
