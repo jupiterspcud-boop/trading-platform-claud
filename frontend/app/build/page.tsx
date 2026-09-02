@@ -21,6 +21,8 @@ export default function BuildPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Strategy | null>(null);
   const [prefill, setPrefill] = useState<any>(null);
+  const [inlineEdits, setInlineEdits] = useState<Record<string, { sl: string; target: string }>>({});
+  const [savingInline, setSavingInline] = useState<string | null>(null);
 
   function reload() {
     fetchStrategies().then(setStrategies).catch((err) => setError(err.message));
@@ -34,6 +36,28 @@ export default function BuildPage() {
     if (!confirm('Delete this strategy?')) return;
     await authFetch(`/api/strategy/${id}`, { method: 'DELETE' });
     reload();
+  }
+
+  function getEdit(s: Strategy) {
+    return inlineEdits[s.id] || { sl: s.stop_loss_pct?.toString() || '', target: s.target_pct?.toString() || '' };
+  }
+
+  function updateEdit(id: string, field: 'sl' | 'target', value: string, s: Strategy) {
+    setInlineEdits((prev) => ({ ...prev, [id]: { ...getEdit(s), ...prev[id], [field]: value } }));
+  }
+
+  async function saveInline(s: Strategy) {
+    const edit = getEdit(s);
+    setSavingInline(s.id);
+    try {
+      await authFetch(`/api/strategy/${s.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ stopLossPct: Number(edit.sl), targetPct: Number(edit.target) }),
+      });
+      reload();
+    } finally {
+      setSavingInline(null);
+    }
   }
 
   return (
@@ -113,9 +137,30 @@ export default function BuildPage() {
 
               <p className="text-[12px] text-[var(--text-secondary)] mt-2.5">{legsSummary(s.legs)}</p>
 
-              <div className="flex gap-3 mt-2 text-[11px] text-[var(--text-secondary)]">
-                {s.stop_loss_pct != null && <span>SL {s.stop_loss_pct}%</span>}
-                {s.target_pct != null && <span>Target {s.target_pct}%</span>}
+              <div className="flex items-center gap-2 mt-2.5">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-[var(--text-secondary)]">SL</span>
+                  <input
+                    type="number"
+                    value={getEdit(s).sl}
+                    onChange={(e) => updateEdit(s.id, 'sl', e.target.value, s)}
+                    onBlur={() => saveInline(s)}
+                    className="w-14 bg-[var(--bg-card-hover)] glass border border-[var(--border)] rounded-md px-1.5 py-1 text-[12px] text-center"
+                  />
+                  <span className="text-[10px] text-[var(--text-secondary)]">%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-[var(--text-secondary)]">Target</span>
+                  <input
+                    type="number"
+                    value={getEdit(s).target}
+                    onChange={(e) => updateEdit(s.id, 'target', e.target.value, s)}
+                    onBlur={() => saveInline(s)}
+                    className="w-14 bg-[var(--bg-card-hover)] glass border border-[var(--border)] rounded-md px-1.5 py-1 text-[12px] text-center"
+                  />
+                  <span className="text-[10px] text-[var(--text-secondary)]">%</span>
+                </div>
+                {savingInline === s.id && <span className="text-[10px] text-[var(--accent-brand)]">Saving…</span>}
               </div>
 
               <div className="grid grid-cols-2 gap-2 mt-3.5">
